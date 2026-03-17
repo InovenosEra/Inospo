@@ -129,12 +129,12 @@ export function MatchOdds({ homeTeam, awayTeam }: Props) {
 
   return (
     <View style={styles.container}>
-      {/* Form row */}
+      {/* Form row — only show if at least one team has form data */}
       {(homeForm || awayForm) && (
         <View style={styles.formRow}>
           <View style={styles.formSide}>
             <Text style={styles.teamCode}>{homeTeam.slice(0, 3).toUpperCase()}</Text>
-            {homeForm && (
+            {homeForm ? (
               <View style={styles.formDots}>
                 {homeForm.map((r, i) => (
                   <View key={i} style={[styles.formDot, { backgroundColor: FORM_COLORS[r] }]}>
@@ -142,11 +142,13 @@ export function MatchOdds({ homeTeam, awayTeam }: Props) {
                   </View>
                 ))}
               </View>
+            ) : (
+              <Text style={styles.formNone}>—</Text>
             )}
           </View>
           <Text style={styles.formLabel}>Form</Text>
           <View style={[styles.formSide, styles.formSideRight]}>
-            {awayForm && (
+            {awayForm ? (
               <View style={styles.formDots}>
                 {awayForm.map((r, i) => (
                   <View key={i} style={[styles.formDot, { backgroundColor: FORM_COLORS[r] }]}>
@@ -154,6 +156,8 @@ export function MatchOdds({ homeTeam, awayTeam }: Props) {
                   </View>
                 ))}
               </View>
+            ) : (
+              <Text style={styles.formNone}>—</Text>
             )}
             <Text style={styles.teamCode}>{awayTeam.slice(0, 3).toUpperCase()}</Text>
           </View>
@@ -220,6 +224,7 @@ const styles = StyleSheet.create({
     minWidth: 32,
   },
   teamCode: { color: Colors.textMuted, fontSize: Typography.xs },
+  formNone: { color: Colors.textMuted, fontSize: Typography.xs, paddingHorizontal: 4 },
   oddsRow: {
     flexDirection: 'row',
     alignItems: 'center',

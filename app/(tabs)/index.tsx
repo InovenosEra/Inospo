@@ -6,7 +6,6 @@ import {
   StyleSheet,
   RefreshControl,
   TouchableOpacity,
-  ScrollView,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -35,7 +34,7 @@ export default function MatchesScreen() {
   const { data: matches = [], isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['matches'],
     queryFn: fetchMatches,
-    refetchInterval: 30 * 1000, // poll every 30s
+    refetchInterval: 30 * 1000,
   });
 
   const filteredMatches = matches.filter((m) => {
@@ -62,16 +61,12 @@ export default function MatchesScreen() {
         <Text style={styles.headerSubtitle}>FIFA · USA · Canada · Mexico</Text>
       </View>
 
-      {/* Filters */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filtersContainer}
-      >
+      {/* Filters — fixed row, all 4 tabs always visible */}
+      <View style={styles.filtersRow}>
         {FILTERS.map((f) => (
           <TouchableOpacity
             key={f.key}
-            style={[styles.filterChip, filter === f.key && styles.filterChipActive]}
+            style={[styles.filterTab, filter === f.key && styles.filterTabActive]}
             onPress={() => setFilter(f.key)}
             activeOpacity={0.7}
           >
@@ -83,7 +78,7 @@ export default function MatchesScreen() {
             </Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </View>
 
       {/* Match List */}
       <FlatList
@@ -151,29 +146,33 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 2,
   },
-  filtersContainer: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    gap: Spacing.sm,
-  },
-  filterChip: {
+  // Fixed-width row — all tabs share equal space, never resize
+  filtersRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginRight: Spacing.sm,
-    gap: 6,
+    gap: Spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
-  filterChipActive: {
+  filterTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.full,
+    gap: 5,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.cardElevated,
+  },
+  filterTabActive: {
     backgroundColor: Colors.primaryDim,
     borderColor: Colors.primary,
   },
   filterLabel: {
-    fontSize: Typography.sm,
+    fontSize: Typography.xs,
     fontWeight: '600',
     color: Colors.textSecondary,
   },
@@ -181,9 +180,9 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
   liveDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: Colors.textMuted,
   },
   liveDotActive: {

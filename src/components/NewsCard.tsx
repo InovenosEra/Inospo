@@ -9,7 +9,7 @@ interface Props {
 }
 
 export function NewsCard({ article, onPress }: Props) {
-  const timeAgo = formatTimeAgo(article.published_at);
+  const timeAgo = formatTimeAgo(article.rawDate ?? article.date ?? '');
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.75}>

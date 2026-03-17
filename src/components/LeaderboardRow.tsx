@@ -27,14 +27,14 @@ export function LeaderboardRow({ entry, isCurrentUser }: Props) {
       {/* Avatar placeholder */}
       <View style={[styles.avatar, isCurrentUser && styles.avatarHighlight]}>
         <Text style={styles.avatarText}>
-          {entry.profile.username.charAt(0).toUpperCase()}
+          {(entry.profile.username ?? '?').charAt(0).toUpperCase()}
         </Text>
       </View>
 
       {/* Username */}
       <View style={styles.nameCol}>
         <Text style={[styles.username, isCurrentUser && styles.usernameHighlight]} numberOfLines={1}>
-          {entry.profile.username}
+          {entry.profile.username ?? 'Anonymous'}
           {isCurrentUser ? ' (you)' : ''}
         </Text>
       </View>

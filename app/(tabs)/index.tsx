@@ -18,9 +18,9 @@ import { PredictionModal } from '@/components/PredictionModal';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import type { Match, MatchFilter } from '@/types';
 
-const FILTERS: Array<{ key: MatchFilter; label: string }> = [
+const FILTERS: Array<{ key: MatchFilter; label: string; dot?: boolean }> = [
   { key: 'all', label: 'All' },
-  { key: 'live', label: '🔴 Live' },
+  { key: 'live', label: 'Live', dot: true },
   { key: 'upcoming', label: 'Upcoming' },
   { key: 'completed', label: 'Completed' },
 ];
@@ -75,6 +75,9 @@ export default function MatchesScreen() {
             onPress={() => setFilter(f.key)}
             activeOpacity={0.7}
           >
+            {f.dot && (
+              <View style={[styles.liveDot, filter === f.key && styles.liveDotActive]} />
+            )}
             <Text style={[styles.filterLabel, filter === f.key && styles.filterLabelActive]}>
               {f.label}
             </Text>
@@ -154,6 +157,8 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderRadius: Radius.full,
@@ -161,6 +166,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     marginRight: Spacing.sm,
+    gap: 6,
   },
   filterChipActive: {
     backgroundColor: Colors.primaryDim,
@@ -173,6 +179,15 @@ const styles = StyleSheet.create({
   },
   filterLabelActive: {
     color: Colors.primary,
+  },
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: Colors.textMuted,
+  },
+  liveDotActive: {
+    backgroundColor: Colors.live,
   },
   listContent: {
     paddingHorizontal: Spacing.lg,

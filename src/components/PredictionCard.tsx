@@ -11,14 +11,14 @@ export function PredictionCard({ prediction }: Props) {
   if (!match) return null;
 
   const isFinished = match.status === 'finished';
-  const hasPoints = prediction.points_earned > 0;
+  const hasPoints = (prediction.points_earned ?? 0) > 0;
 
   return (
     <View style={[styles.card, hasPoints && styles.cardCorrect]}>
       {/* Teams */}
       <View style={styles.teamsRow}>
         <View style={styles.teamSide}>
-          <Image source={{ uri: match.home_team?.flag_url }} style={styles.flag} resizeMode="contain" />
+          <Image source={{ uri: match.home_team?.flag_url ?? undefined }} style={styles.flag} resizeMode="contain" />
           <Text style={styles.teamName} numberOfLines={1}>{match.home_team?.name}</Text>
         </View>
 
@@ -38,7 +38,7 @@ export function PredictionCard({ prediction }: Props) {
         </View>
 
         <View style={[styles.teamSide, styles.teamRight]}>
-          <Image source={{ uri: match.away_team?.flag_url }} style={styles.flag} resizeMode="contain" />
+          <Image source={{ uri: match.away_team?.flag_url ?? undefined }} style={styles.flag} resizeMode="contain" />
           <Text style={styles.teamName} numberOfLines={1}>{match.away_team?.name}</Text>
         </View>
       </View>

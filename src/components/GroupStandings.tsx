@@ -11,10 +11,11 @@ export function GroupStandings({ matches, teams }: Props) {
   const groups = computeStandings(matches, teams);
   const groupKeys = Object.keys(groups).sort();
 
+  // Always show all groups even with 0 points — tournament hasn't started yet
   if (groupKeys.length === 0) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyText}>Standings will appear once matches begin</Text>
+        <Text style={styles.emptyText}>No teams found</Text>
       </View>
     );
   }
@@ -37,7 +38,7 @@ export function GroupStandings({ matches, teams }: Props) {
           {groups[groupName].map((standing, idx) => (
             <View key={standing.team.id} style={[styles.row, idx < 2 && styles.rowQualified]}>
               <View style={[styles.cell, { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
-                <Image source={{ uri: standing.team.flag_url }} style={styles.flag} resizeMode="contain" />
+                <Image source={{ uri: standing.team.flag_url ?? undefined }} style={styles.flag} resizeMode="contain" />
                 <Text style={styles.teamName} numberOfLines={1}>{standing.team.name}</Text>
               </View>
               <Text style={styles.cell}>{standing.played}</Text>
@@ -78,8 +79,8 @@ function computeStandings(matches: Match[], teams: Team[]): Record<string, Group
     const group = match.home_team?.group_name;
     if (!group || !standings[group]) continue;
 
-    const home = standings[group][match.home_team_id];
-    const away = standings[group][match.away_team_id];
+    const home = match.home_team_id ? standings[group][match.home_team_id] : undefined;
+    const away = match.away_team_id ? standings[group][match.away_team_id] : undefined;
     if (!home || !away) continue;
 
     home.played++; away.played++;

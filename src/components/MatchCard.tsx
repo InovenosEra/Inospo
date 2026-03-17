@@ -44,7 +44,9 @@ export function MatchCard({ match, onPredictPress, userId }: Props) {
       {/* Stage / Status Row */}
       <View style={styles.topRow}>
         <Text style={styles.stageText}>
-          {(match.stage ?? 'Group').toUpperCase()} · {match.city ?? ''}
+          {match.stage === 'group'
+            ? `GROUP ${match.home_team?.group_name ?? ''} · ${match.city ?? ''}`
+            : `${(match.stage ?? '').toUpperCase()} · ${match.city ?? ''}`}
         </Text>
         {isLive && (
           <View style={styles.liveBadge}>

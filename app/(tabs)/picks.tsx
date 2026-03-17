@@ -26,8 +26,8 @@ export default function PicksScreen() {
     enabled: !!profile?.id,
   });
 
-  const totalPoints = predictions.reduce((sum, p) => sum + p.points_earned, 0);
-  const correct = predictions.filter((p) => p.points_earned > 0).length;
+  const totalPoints = predictions.reduce((sum, p) => sum + (p.points_earned ?? 0), 0);
+  const correct = predictions.filter((p) => (p.points_earned ?? 0) > 0).length;
 
   if (!isAuthenticated) {
     return (

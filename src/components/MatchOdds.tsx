@@ -1,29 +1,87 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 
-// FIFA Rankings (December 2024) — used for win probability
+// FIFA Rankings — all 53 WC 2026 teams (Jan 2025 approximation)
 const FIFA_RANKINGS: Record<string, number> = {
-  // UEFA
-  'Italy': 10, 'Wales': 28, 'Bosnia-Herzegovina': 75, 'Northern Ireland': 73,
-  'Ukraine': 22, 'Sweden': 45, 'Poland': 30, 'Albania': 64, 'Slovakia': 49,
-  'Kosovo': 102, 'Turkey': 42, 'Romania': 35, 'Czechia': 44, 'Ireland': 58,
-  'Denmark': 21, 'North Macedonia': 68,
-  // Top nations
-  'France': 2, 'Brazil': 3, 'England': 4, 'Belgium': 5, 'Portugal': 6,
-  'Netherlands': 7, 'Spain': 8, 'Argentina': 1, 'Germany': 9,
-  'USA': 11, 'Mexico': 15, 'Canada': 40,
-  // Intercontinental
-  'New Caledonia': 161, 'Jamaica': 63, 'DR Congo': 60,
-  'Bolivia': 88, 'Suriname': 137, 'Iraq': 63,
+  // Top tier
+  'Argentina': 1,
+  'France': 2,
+  'Spain': 3,
+  'England': 4,
+  'Brazil': 5,
+  'Belgium': 6,
+  'Portugal': 7,
+  'Netherlands': 8,
+  'Germany': 9,
+  'Italy': 10,
+  'USA': 11,
+  'Croatia': 12,
+  'Morocco': 13,
+  'Uruguay': 14,
+  'Mexico': 15,
+  'Colombia': 16,
+  'Switzerland': 17,
+  'Japan': 18,
+  'Senegal': 19,
+  'Austria': 20,
+  'Denmark': 21,
+  'South Korea': 22,
+  'Ecuador': 23,
+  'Australia': 24,
+  'Wales': 25,
+  'Serbia': 26,
+  'Iran': 27,
+  'Poland': 28,
+  'Scotland': 29,
+  'Egypt': 31,
+  'Norway': 32,
+  'Algeria': 33,
+  'Tunisia': 34,
+  'Turkey': 38,
+  'Saudi Arabia': 56,
+  'Nigeria': 40,
+  'Canada': 41,
+  'Czechia': 43,
+  'Jordan': 68,
+  'Panama': 48,
+  'Ivory Coast': 50,
+  'Cape Verde': 69,
+  'Bolivia': 79,
+  'South Africa': 66,
+  'Qatar': 37,
+  'Ghana': 55,
+  'Bosnia Herzegovina': 62,
+  'Haiti': 84,
+  'Jamaica': 61,
+  'Paraguay': 53,
+  'Uzbekistan': 74,
+  'Curacao': 105,
+  'New Zealand': 97,
 };
 
-// Recent form (last 5: W/D/L)
+// Recent form (last 5: W/D/L) — key qualifying/recent teams
 type FormResult = 'W' | 'D' | 'L';
 const TEAM_FORM: Record<string, FormResult[]> = {
+  'Argentina': ['W', 'W', 'W', 'D', 'W'],
+  'France': ['W', 'W', 'D', 'W', 'W'],
+  'Spain': ['W', 'W', 'W', 'W', 'D'],
+  'England': ['W', 'D', 'W', 'W', 'W'],
+  'Brazil': ['D', 'W', 'L', 'W', 'W'],
+  'Germany': ['W', 'W', 'W', 'D', 'W'],
+  'Portugal': ['W', 'W', 'W', 'W', 'D'],
+  'Netherlands': ['W', 'W', 'D', 'W', 'W'],
+  'Belgium': ['W', 'D', 'W', 'W', 'L'],
   'Italy': ['W', 'W', 'D', 'W', 'W'],
-  'Wales': ['W', 'D', 'L', 'W', 'D'],
-  'Ukraine': ['W', 'W', 'W', 'D', 'W'],
+  'USA': ['W', 'W', 'D', 'W', 'W'],
+  'Mexico': ['W', 'D', 'W', 'W', 'D'],
+  'Canada': ['W', 'W', 'W', 'D', 'W'],
+  'Morocco': ['W', 'W', 'D', 'W', 'W'],
+  'Japan': ['W', 'W', 'W', 'D', 'W'],
+  'South Korea': ['W', 'D', 'W', 'W', 'D'],
   'Denmark': ['W', 'W', 'W', 'W', 'D'],
+  'Switzerland': ['W', 'D', 'W', 'W', 'W'],
+  'Serbia': ['W', 'D', 'W', 'L', 'W'],
+  'Wales': ['W', 'D', 'L', 'W', 'D'],
   'Turkey': ['W', 'W', 'W', 'D', 'W'],
 };
 
@@ -54,19 +112,18 @@ interface Props {
 }
 
 export function MatchOdds({ homeTeam, awayTeam }: Props) {
-  if (homeTeam.includes('TBD') || awayTeam.includes('TBD') ||
+  if (!homeTeam || !awayTeam ||
+      homeTeam.includes('TBD') || awayTeam.includes('TBD') ||
       homeTeam.includes('Winner') || awayTeam.includes('Winner')) {
     return null;
   }
 
   const homeRank = FIFA_RANKINGS[homeTeam];
   const awayRank = FIFA_RANKINGS[awayTeam];
-
   if (!homeRank || !awayRank) return null;
 
   const odds = calculateWinProbability(homeRank, awayRank);
   const favorite = odds.home > odds.away ? 'home' : odds.away > odds.home ? 'away' : 'draw';
-
   const homeForm = TEAM_FORM[homeTeam];
   const awayForm = TEAM_FORM[awayTeam];
 
@@ -168,15 +225,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  oddsLabel: {
-    color: Colors.textMuted,
-    fontSize: Typography.xs,
-    flex: 1,
-  },
-  oddsValues: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
+  oddsLabel: { color: Colors.textMuted, fontSize: Typography.xs, flex: 1 },
+  oddsValues: { flexDirection: 'row', gap: Spacing.md },
   oddsVal: { color: Colors.textMuted, fontSize: Typography.xs, fontWeight: '600' },
   oddsValFav: {
     color: Colors.primary,

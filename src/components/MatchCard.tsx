@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Typography, Radius, Shadows } from '@/constants/theme';
 import { fetchPredictionForMatch } from '@/lib/api';
 import { getMatchStatus, canPredict } from '@/types';
@@ -13,12 +14,23 @@ interface Props {
   userId?: string;
 }
 
+function getCountdown(dateStr: string): string {
+  const diff = new Date(dateStr).getTime() - Date.now();
+  if (diff <= 0) return '';
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+  if (days > 0) return `${days}d ${hours}h`;
+  const minutes = Math.floor((diff / 1000 / 60) % 60);
+  return `${hours}h ${minutes}m`;
+}
+
 export function MatchCard({ match, onPredictPress, userId }: Props) {
   const router = useRouter();
   const status = getMatchStatus(match);
   const isLive = status === 'live';
   const isFinished = status === 'finished';
   const isPredictable = canPredict(match);
+  const countdown = !isLive && !isFinished ? getCountdown(match.match_date) : '';
 
   const { data: prediction } = useQuery({
     queryKey: ['prediction', userId, match.id],
@@ -35,6 +47,16 @@ export function MatchCard({ match, onPredictPress, userId }: Props) {
     : (prediction?.points_earned ?? 0) === 2 ? Colors.accent
     : Colors.textMuted;
 
+  const stageText = match.stage === 'group'
+    ? [
+        `GROUP ${match.home_team?.group_name ?? ''}`,
+        match.city,
+      ].filter(Boolean).join(' · ')
+    : [
+        (match.stage ?? '').toUpperCase(),
+        match.city,
+      ].filter(Boolean).join(' · ');
+
   return (
     <TouchableOpacity
       style={styles.card}
@@ -43,17 +65,7 @@ export function MatchCard({ match, onPredictPress, userId }: Props) {
     >
       {/* Stage / Status Row */}
       <View style={styles.topRow}>
-        <Text style={styles.stageText}>
-          {match.stage === 'group'
-            ? [
-                `GROUP ${match.home_team?.group_name ?? ''}`,
-                match.city,
-              ].filter(Boolean).join(' · ')
-            : [
-                (match.stage ?? '').toUpperCase(),
-                match.city,
-              ].filter(Boolean).join(' · ')}
-        </Text>
+        <Text style={styles.stageText}>{stageText}</Text>
         {isLive && (
           <View style={styles.liveBadge}>
             <View style={styles.liveDot} />
@@ -78,7 +90,7 @@ export function MatchCard({ match, onPredictPress, userId }: Props) {
           <Text style={styles.teamName} numberOfLines={1}>{match.home_team?.name}</Text>
         </View>
 
-        {/* Score */}
+        {/* Score / VS + countdown */}
         <View style={styles.scoreBox}>
           {isFinished || isLive ? (
             <Text style={[styles.score, isLive && styles.scoreLive]}>
@@ -87,6 +99,12 @@ export function MatchCard({ match, onPredictPress, userId }: Props) {
           ) : (
             <Text style={styles.vs}>VS</Text>
           )}
+          {countdown ? (
+            <View style={styles.countdownBadge}>
+              <Ionicons name="time-outline" size={11} color={Colors.primary} />
+              <Text style={styles.countdownText}>{countdown}</Text>
+            </View>
+          ) : null}
           {/* Prediction badge */}
           {prediction && (
             <Text style={[styles.predBadge, { color: pointsColor }]}>
@@ -108,6 +126,16 @@ export function MatchCard({ match, onPredictPress, userId }: Props) {
           <Text style={styles.teamName} numberOfLines={1}>{match.away_team?.name}</Text>
         </View>
       </View>
+
+      {/* Stadium */}
+      {match.stadium && (
+        <View style={styles.venueRow}>
+          <Ionicons name="location-outline" size={12} color={Colors.textMuted} />
+          <Text style={styles.venueText} numberOfLines={1}>
+            {[match.stadium, match.city].filter(Boolean).join(', ')}
+          </Text>
+        </View>
+      )}
 
       {/* Win probability + form (only for scheduled matches with known teams) */}
       {!isFinished && !isLive && match.home_team && match.away_team && (
@@ -198,25 +226,52 @@ const styles = StyleSheet.create({
   score: { fontSize: Typography.xl, fontWeight: '900', color: Colors.text },
   scoreLive: { color: Colors.live },
   vs: { fontSize: Typography.lg, fontWeight: '800', color: Colors.textMuted },
+  countdownBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: Colors.primaryDim,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+  },
+  countdownText: {
+    color: Colors.primary,
+    fontSize: Typography.xs,
+    fontWeight: '700',
+  },
   predBadge: {
     fontSize: Typography.xs,
     fontWeight: '600',
   },
+  venueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: Spacing.sm,
+  },
+  venueText: {
+    color: Colors.textMuted,
+    fontSize: Typography.xs,
+    flex: 1,
+  },
   predictBtn: {
-    backgroundColor: Colors.primaryDim,
-    borderWidth: 1,
-    borderColor: Colors.primary,
+    backgroundColor: Colors.primary,
     paddingVertical: Spacing.sm,
     borderRadius: Radius.full,
     marginTop: Spacing.md,
     alignItems: 'center',
+    ...Shadows.gold,
   },
   updateBtn: {
     backgroundColor: 'transparent',
+    borderWidth: 1,
     borderColor: Colors.border,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   predictBtnText: {
-    color: Colors.primary,
+    color: Colors.textInverse,
     fontSize: Typography.sm,
     fontWeight: '700',
   },

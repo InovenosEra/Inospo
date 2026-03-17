@@ -76,7 +76,7 @@ export default function LeaderboardScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>🏆 Leaderboard</Text>
+        <Text style={styles.headerTitle}>Leaderboard</Text>
         {isAuthenticated ? (
           <TouchableOpacity style={styles.leagueBtn} onPress={() => setShowLeagueModal(true)}>
             <Ionicons name="people-outline" size={16} color={Colors.primary} />

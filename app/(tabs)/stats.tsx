@@ -47,7 +47,7 @@ export default function StatsScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>📊 Statistics</Text>
+        <Text style={styles.headerTitle}>Statistics</Text>
       </View>
 
       {/* Sub-navigation */}

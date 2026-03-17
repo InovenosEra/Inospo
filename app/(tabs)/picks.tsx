@@ -33,7 +33,7 @@ export default function PicksScreen() {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>🎯 My Picks</Text>
+          <Text style={styles.headerTitle}>My Picks</Text>
         </View>
         <View style={styles.unauthContainer}>
           <Ionicons name="lock-closed-outline" size={56} color={Colors.textMuted} />
@@ -54,7 +54,7 @@ export default function PicksScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>🎯 My Picks</Text>
+        <Text style={styles.headerTitle}>My Picks</Text>
         {profile && (
           <Text style={styles.headerUsername}>@{profile.username}</Text>
         )}

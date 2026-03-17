@@ -43,7 +43,7 @@ export default function NewsScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>📰 News</Text>
+        <Text style={styles.headerTitle}>News</Text>
       </View>
 
       {/* Search */}

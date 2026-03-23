@@ -25,20 +25,37 @@ export function QualifiersView() {
   if (fixtures.length === 0) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyIcon}>🌍</Text>
-        <Text style={styles.emptyTitle}>Qualification Phase Complete</Text>
+        <Text style={styles.emptyIcon}>⚽</Text>
+        <Text style={styles.emptyTitle}>Playoffs in Progress</Text>
         <Text style={styles.emptyText}>
-          All 48 teams have qualified for the 2026 FIFA World Cup.{'\n'}
-          The group stage begins June 2026.
+          The final 6 spots for the 2026 FIFA World Cup{'\n'}
+          are being decided in the playoffs.
         </Text>
+        <View style={styles.playoffTeams}>
+          <Text style={styles.playoffLabel}>COMPETING FOR FINAL SPOTS</Text>
+          {[
+            { code: 'CZE', name: 'Czechia' },
+            { code: 'BIH', name: 'Bosnia Herzegovina' },
+            { code: 'TUR', name: 'Turkey' },
+            { code: 'POL', name: 'Poland' },
+            { code: 'BOL', name: 'Bolivia' },
+            { code: 'JAM', name: 'Jamaica' },
+          ].map((t) => (
+            <View key={t.code} style={styles.playoffRow}>
+              <Text style={styles.playoffCode}>{t.code}</Text>
+              <Text style={styles.playoffName}>{t.name}</Text>
+            </View>
+          ))}
+        </View>
       </View>
     );
   }
 
-  // Group by round
+  // Group by stage (confederation) then round
   const byRound: Record<string, QualificationFixture[]> = {};
   for (const f of fixtures) {
-    const key = f.round || f.stage || 'Qualifying';
+    const league = f.stage.replace('World Cup - Qualification ', '').replace('World Cup - ', '');
+    const key = `${league} — ${f.round}`;
     if (!byRound[key]) byRound[key] = [];
     byRound[key].push(f);
   }
@@ -117,6 +134,40 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 48 },
   emptyTitle: { color: Colors.text, fontSize: Typography.lg, fontWeight: '700' },
   emptyText: { color: Colors.textSecondary, fontSize: Typography.sm, textAlign: 'center', lineHeight: 20 },
+  playoffTeams: {
+    marginTop: Spacing.md,
+    width: '100%',
+    backgroundColor: Colors.card,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  playoffLabel: {
+    color: Colors.primary,
+    fontSize: Typography.xs,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    marginBottom: Spacing.xs,
+  },
+  playoffRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: 2,
+  },
+  playoffCode: {
+    color: Colors.primary,
+    fontSize: Typography.sm,
+    fontWeight: '800',
+    width: 40,
+  },
+  playoffName: {
+    color: Colors.text,
+    fontSize: Typography.sm,
+    fontWeight: '500',
+  },
   roundHeader: {
     color: Colors.primary,
     fontSize: Typography.sm,

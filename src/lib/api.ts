@@ -252,81 +252,77 @@ export async function fetchMatchFact(match: Match): Promise<string> {
   }
 }
 
-// Top Scorers: GET via football-api
+// Top Scorers: GET via football-api (API-Football format)
 export async function fetchTopScorers(): Promise<TopScorer[]> {
   try {
     const data = await callFootballApi('topscorers');
-    return (data?.data || []).slice(0, 15).map((item: any) => ({
-      player_id: item.player_id,
-      player_name: item.player?.display_name || 'Unknown',
-      team_name: item.participant?.name || '',
-      team_code: item.participant?.short_code || '',
-      goals: item.total || 0,
-      assists: 0,
-      image_path: item.player?.image_path,
+    return (data?.response || []).slice(0, 15).map((item: any) => ({
+      player_id: item.player?.id,
+      player_name: item.player?.name || 'Unknown',
+      team_name: item.statistics?.[0]?.team?.name || '',
+      team_code: item.statistics?.[0]?.team?.name?.slice(0, 3).toUpperCase() || '',
+      goals: item.statistics?.[0]?.goals?.total || 0,
+      assists: item.statistics?.[0]?.goals?.assists || 0,
+      image_path: item.player?.photo,
     })) as TopScorer[];
   } catch {
     return [];
   }
 }
 
-// Top Assists: GET via football-api
+// Top Assists: GET via football-api (API-Football format)
 export async function fetchTopAssists(): Promise<TopScorer[]> {
   try {
     const data = await callFootballApi('topassists');
-    return (data?.data || []).slice(0, 15).map((item: any) => ({
-      player_id: item.player_id,
-      player_name: item.player?.display_name || 'Unknown',
-      team_name: item.participant?.name || '',
-      team_code: item.participant?.short_code || '',
+    return (data?.response || []).slice(0, 15).map((item: any) => ({
+      player_id: item.player?.id,
+      player_name: item.player?.name || 'Unknown',
+      team_name: item.statistics?.[0]?.team?.name || '',
+      team_code: item.statistics?.[0]?.team?.name?.slice(0, 3).toUpperCase() || '',
       goals: 0,
-      assists: item.total || 0,
-      image_path: item.player?.image_path,
+      assists: item.statistics?.[0]?.goals?.assists || 0,
+      image_path: item.player?.photo,
     })) as TopScorer[];
   } catch {
     return [];
   }
 }
 
-// Live Fixtures: GET via football-api
+// Live Fixtures: GET via football-api (API-Football format)
 export async function fetchLiveFixtures() {
   try {
     const data = await callFootballApi('live');
-    return data?.data || [];
+    return data?.response || [];
   } catch {
     return [];
   }
 }
 
-// Qualification Fixtures: GET via football-api
+// Qualification Fixtures: GET via football-api (API-Football format)
 export async function fetchQualificationFixtures() {
   try {
     const data = await callFootballApi('qualifiers');
-    const fixtures = data?.data || [];
-    return fixtures.map((fixture: any) => {
-      const stateShort = fixture.state?.short_name || 'NS';
-      let status: 'scheduled' | 'live' | 'completed' | 'tbd' = 'scheduled';
-      if (['LIVE', '1H', '2H', 'HT', 'ET', 'PEN_LIVE', 'BT'].includes(stateShort)) status = 'live';
-      else if (['FT', 'AET', 'FT_PEN'].includes(stateShort)) status = 'completed';
+    const fixtures: any[] = data?.response || [];
 
-      const homeTeam = fixture.participants?.find((p: any) => p.meta?.location === 'home');
-      const awayTeam = fixture.participants?.find((p: any) => p.meta?.location === 'away');
-      const homeScore = fixture.scores?.find((s: any) => s.participant_id === homeTeam?.id)?.score?.goals ?? null;
-      const awayScore = fixture.scores?.find((s: any) => s.participant_id === awayTeam?.id)?.score?.goals ?? null;
+    return fixtures.map((f: any) => {
+      const statusShort = f.fixture?.status?.short || 'NS';
+      let status: 'scheduled' | 'live' | 'completed' | 'tbd' = 'scheduled';
+      if (['1H', 'HT', '2H', 'ET', 'P', 'BT', 'LIVE'].includes(statusShort)) status = 'live';
+      else if (['FT', 'AET', 'PEN'].includes(statusShort)) status = 'completed';
 
       return {
-        id: fixture.id,
-        homeTeam: homeTeam?.name || 'TBD',
-        awayTeam: awayTeam?.name || 'TBD',
-        homeFlag: homeTeam?.image_path || '',
-        awayFlag: awayTeam?.image_path || '',
-        homeScore,
-        awayScore,
-        date: fixture.starting_at || '',
-        venue: fixture.venue?.city_name || fixture.venue?.name || '',
+        id: f.fixture?.id,
+        homeTeam: f.teams?.home?.name || 'TBD',
+        awayTeam: f.teams?.away?.name || 'TBD',
+        homeFlag: f.teams?.home?.logo || '',
+        awayFlag: f.teams?.away?.logo || '',
+        homeScore: f.goals?.home ?? null,
+        awayScore: f.goals?.away ?? null,
+        date: f.fixture?.date || '',
+        venue: f.fixture?.venue?.name || f.fixture?.venue?.city || '',
         status,
-        round: fixture.round?.name || '',
-        stage: fixture.stage?.name || '',
+        round: (f.league?.round || '').replace(/_/g, ' '),
+        stage: f.league?.name || 'WC Qualifier',
       };
     });
   } catch {

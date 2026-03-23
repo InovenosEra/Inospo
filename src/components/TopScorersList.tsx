@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
+import { scale } from '@/utils/responsive';
 import type { TopScorer } from '@/types';
 
 interface Props {
@@ -60,7 +61,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.xs,
     fontWeight: '700',
     textTransform: 'uppercase',
-    width: 60,
+    width: scale(60),
     textAlign: 'center',
   },
   row: {
@@ -73,30 +74,30 @@ const styles = StyleSheet.create({
   },
   rowAlt: { backgroundColor: Colors.card },
   rankBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: scale(24),
+    height: scale(24),
+    borderRadius: scale(12),
     backgroundColor: Colors.primaryDim,
     alignItems: 'center',
     justifyContent: 'center',
   },
   rankText: { color: Colors.primary, fontSize: Typography.xs, fontWeight: '800' },
   playerInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.cardElevated },
+  avatar: { width: scale(32), height: scale(32), borderRadius: scale(16), backgroundColor: Colors.cardElevated },
   playerName: { color: Colors.text, fontSize: Typography.sm, fontWeight: '700' },
   teamName: { color: Colors.textMuted, fontSize: Typography.xs },
   goals: {
     color: Colors.primary,
     fontWeight: '800',
     fontSize: Typography.base,
-    width: 60,
+    width: scale(60),
     textAlign: 'center',
   },
   assists: {
     color: Colors.textSecondary,
     fontWeight: '600',
     fontSize: Typography.sm,
-    width: 60,
+    width: scale(60),
     textAlign: 'center',
   },
   empty: { alignItems: 'center', paddingVertical: Spacing.xxl, gap: Spacing.md },

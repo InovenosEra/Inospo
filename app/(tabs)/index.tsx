@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,21 +15,16 @@ import { MatchCard } from '@/components/MatchCard';
 import { AuthModal } from '@/components/AuthModal';
 import { PredictionModal } from '@/components/PredictionModal';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
-import type { Match, MatchFilter } from '@/types';
-
-const FILTERS: Array<{ key: MatchFilter; label: string; dot?: boolean }> = [
-  { key: 'all', label: 'All' },
-  { key: 'live', label: 'Live', dot: true },
-  { key: 'upcoming', label: 'Upcoming' },
-  { key: 'completed', label: 'Completed' },
-];
+import type { Match } from '@/types';
 
 export default function MatchesScreen() {
   const insets = useSafeAreaInsets();
   const { isAuthenticated, profile } = useAuth();
-  const [filter, setFilter] = useState<MatchFilter>('all');
+  const [liveOnly, setLiveOnly] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [showAuth, setShowAuth] = useState(false);
+  const flatListRef = useRef<FlatList>(null);
+  const hasScrolled = useRef(false);
 
   const { data: matches = [], isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['matches'],
@@ -37,13 +32,41 @@ export default function MatchesScreen() {
     refetchInterval: 30 * 1000,
   });
 
-  const filteredMatches = matches.filter((m) => {
-    if (filter === 'all') return true;
-    if (filter === 'live') return m.status === 'live';
-    if (filter === 'upcoming') return m.status === 'scheduled';
-    if (filter === 'completed') return m.status === 'finished';
-    return true;
-  });
+  // Sort all matches chronologically
+  const sortedMatches = useMemo(
+    () => [...matches].sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime()),
+    [matches]
+  );
+
+  const displayMatches = liveOnly
+    ? sortedMatches.filter((m) => m.status === 'live')
+    : sortedMatches;
+
+  // Index of the first upcoming (scheduled) match
+  const nextMatchIndex = useMemo(
+    () => displayMatches.findIndex((m) => m.status === 'scheduled'),
+    [displayMatches]
+  );
+
+  // Scroll to next match once on initial load
+  useEffect(() => {
+    if (!liveOnly && nextMatchIndex > 0 && !hasScrolled.current && displayMatches.length > 0) {
+      hasScrolled.current = true;
+      const timer = setTimeout(() => {
+        flatListRef.current?.scrollToIndex({
+          index: nextMatchIndex,
+          animated: false,
+          viewPosition: 0,
+        });
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [nextMatchIndex, liveOnly, displayMatches.length]);
+
+  // Reset scroll flag when switching to live mode and back
+  useEffect(() => {
+    if (!liveOnly) hasScrolled.current = false;
+  }, [liveOnly]);
 
   const handlePredictPress = useCallback((match: Match) => {
     if (!isAuthenticated) {
@@ -57,32 +80,27 @@ export default function MatchesScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>⚽ World Cup 2026</Text>
-        <Text style={styles.headerSubtitle}>FIFA · USA · Canada · Mexico</Text>
-      </View>
+        <View>
+          <Text style={styles.headerTitle}>⚽ World Cup 2026</Text>
+          <Text style={styles.headerSubtitle}>FIFA · USA · Canada · Mexico</Text>
+        </View>
 
-      {/* Filters — fixed row, all 4 tabs always visible */}
-      <View style={styles.filtersRow}>
-        {FILTERS.map((f) => (
-          <TouchableOpacity
-            key={f.key}
-            style={[styles.filterTab, filter === f.key && styles.filterTabActive]}
-            onPress={() => setFilter(f.key)}
-            activeOpacity={0.7}
-          >
-            {f.dot && (
-              <View style={[styles.liveDot, filter === f.key && styles.liveDotActive]} />
-            )}
-            <Text style={[styles.filterLabel, filter === f.key && styles.filterLabelActive]}>
-              {f.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {/* Live toggle */}
+        <TouchableOpacity
+          style={[styles.liveToggle, liveOnly && styles.liveToggleActive]}
+          onPress={() => setLiveOnly(!liveOnly)}
+          activeOpacity={0.9}
+        >
+          {!liveOnly && <View style={styles.liveThumbOff} />}
+          <Text style={[styles.liveToggleText, liveOnly && styles.liveToggleTextActive]}>LIVE</Text>
+          {liveOnly && <View style={styles.liveThumbOn} />}
+        </TouchableOpacity>
       </View>
 
       {/* Match List */}
       <FlatList
-        data={filteredMatches}
+        ref={flatListRef}
+        data={displayMatches}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <MatchCard
@@ -100,10 +118,17 @@ export default function MatchesScreen() {
             colors={[Colors.primary]}
           />
         }
+        onScrollToIndexFailed={(info) => {
+          setTimeout(() => {
+            flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
+          }, 300);
+        }}
         ListEmptyComponent={
           isLoading ? null : (
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>No matches found</Text>
+              <Text style={styles.emptyText}>
+                {liveOnly ? 'No live matches right now' : 'No matches found'}
+              </Text>
             </View>
           )
         }
@@ -130,6 +155,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
@@ -146,38 +174,33 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 2,
   },
-  // Fixed-width row — all tabs share equal space, never resize
-  filtersRow: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    gap: Spacing.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  filterTab: {
-    flex: 1,
+  liveToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.sm,
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: Spacing.xs,
     borderRadius: Radius.full,
-    gap: 5,
     borderWidth: 1,
     borderColor: Colors.borderLight,
     backgroundColor: Colors.cardElevated,
+    minWidth: 72,
   },
-  filterTabActive: {
-    backgroundColor: Colors.primaryDim,
-    borderColor: Colors.primary,
+  liveToggleActive: {
+    backgroundColor: Colors.live,
+    borderColor: Colors.live,
   },
-  filterLabel: {
-    fontSize: Typography.xs,
-    fontWeight: '600',
-    color: Colors.textSecondary,
+  liveThumbOff: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.textMuted,
   },
-  filterLabelActive: {
-    color: Colors.primary,
+  liveThumbOn: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.text,
   },
   liveDot: {
     width: 6,
@@ -187,6 +210,17 @@ const styles = StyleSheet.create({
   },
   liveDotActive: {
     backgroundColor: Colors.live,
+  },
+  liveToggleText: {
+    fontSize: Typography.xs,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+    flex: 1,
+    textAlign: 'center',
+  },
+  liveToggleTextActive: {
+    color: Colors.text,
   },
   listContent: {
     paddingHorizontal: Spacing.lg,

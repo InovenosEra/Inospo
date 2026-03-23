@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { PredictionModal } from '@/components/PredictionModal';
 import { useCountdown } from '@/hooks/useCountdown';
 import { Colors, Spacing, Typography, Radius, Shadows } from '@/constants/theme';
+import { scale } from '@/utils/responsive';
 
 export default function MatchDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -187,7 +188,7 @@ const styles = StyleSheet.create({
     ...Shadows.card,
   },
   teamBlock: { flex: 1, alignItems: 'center', gap: Spacing.sm },
-  flag: { width: 64, height: 48, borderRadius: Radius.sm },
+  flag: { width: scale(64), height: scale(48), borderRadius: Radius.sm },
   teamName: {
     color: Colors.text,
     fontSize: Typography.sm,

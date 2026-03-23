@@ -1,3 +1,5 @@
+import { moderateScale, scale } from '@/utils/responsive';
+
 export const Colors = {
   // Backgrounds
   background: '#0B1124',
@@ -36,12 +38,12 @@ export const Colors = {
 };
 
 export const Spacing = {
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
-  xxl: 32,
+  xs: scale(4),
+  sm: scale(8),
+  md: scale(12),
+  lg: scale(16),
+  xl: scale(24),
+  xxl: scale(32),
 };
 
 export const Radius = {
@@ -53,14 +55,14 @@ export const Radius = {
 };
 
 export const Typography = {
-  xs: 11,
-  sm: 13,
-  base: 15,
-  md: 17,
-  lg: 20,
-  xl: 24,
-  xxl: 30,
-  xxxl: 36,
+  xs: moderateScale(11),
+  sm: moderateScale(13),
+  base: moderateScale(15),
+  md: moderateScale(17),
+  lg: moderateScale(20),
+  xl: moderateScale(24),
+  xxl: moderateScale(30),
+  xxxl: moderateScale(36),
 };
 
 export const Shadows = {

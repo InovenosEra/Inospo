@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
+import { verticalScale } from '@/utils/responsive';
 import type { NewsArticle } from '@/types';
 
 interface Props {
@@ -55,7 +56,7 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    height: 160,
+    height: verticalScale(160),
   },
   content: { padding: Spacing.lg },
   topRow: {

@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
+import { scale } from '@/utils/responsive';
 import type { LeaderboardEntry } from '@/types';
 
 interface Props {
@@ -63,7 +64,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
     backgroundColor: Colors.primaryDim,
   },
-  rankBox: { width: 28, alignItems: 'center' },
+  rankBox: { width: scale(28), alignItems: 'center' },
   medal: { fontSize: Typography.lg },
   rank: {
     fontSize: Typography.base,
@@ -72,9 +73,9 @@ const styles = StyleSheet.create({
   },
   rankTop: { color: Colors.primary },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(18),
     backgroundColor: Colors.cardElevated,
     alignItems: 'center',
     justifyContent: 'center',

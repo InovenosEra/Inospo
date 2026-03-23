@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
+import { scale } from '@/utils/responsive';
 import type { Match } from '@/types';
 
 interface Props {
@@ -116,7 +117,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   stageColumn: {
-    width: 120,
+    width: scale(120),
     gap: Spacing.md,
   },
   stageTitle: {
@@ -160,7 +161,7 @@ const styles = StyleSheet.create({
   },
   teamScoreWinner: { color: Colors.primary },
   placeholder: {
-    minWidth: 340,
+    minWidth: scale(340),
     alignItems: 'center',
     paddingVertical: Spacing.xxl,
   },
@@ -179,7 +180,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
   },
   mockBracket: { flexDirection: 'row', gap: Spacing.sm },
-  mockStage: { width: 80, gap: Spacing.sm },
+  mockStage: { width: scale(80), gap: Spacing.sm },
   mockStageLabel: {
     color: Colors.textMuted,
     fontSize: 8,
@@ -188,7 +189,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   mockCard: {
-    height: 32,
+    height: scale(32),
     backgroundColor: Colors.card,
     borderRadius: Radius.sm,
     borderWidth: 1,

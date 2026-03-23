@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Typography, Radius, Shadows } from '@/constants/theme';
+import { scale } from '@/utils/responsive';
 import { fetchPredictionForMatch } from '@/lib/api';
 import { getMatchStatus, canPredict } from '@/types';
 import { MatchOdds } from './MatchOdds';
@@ -12,6 +13,57 @@ interface Props {
   match: Match;
   onPredictPress?: () => void;
   userId?: string;
+}
+
+// WC2026 host venue → { city, region }
+const VENUE_LOCATION: Record<string, { city: string; region: string }> = {
+  // USA
+  'sofi stadium':               { city: 'Los Angeles',      region: 'CA' },
+  "levi's stadium":             { city: 'Santa Clara',      region: 'CA' },
+  'lumen field':                { city: 'Seattle',          region: 'WA' },
+  "at&t stadium":               { city: 'Arlington',        region: 'TX' },
+  'nrg stadium':                { city: 'Houston',          region: 'TX' },
+  'geha field at arrowhead stadium': { city: 'Kansas City', region: 'MO' },
+  'arrowhead stadium':          { city: 'Kansas City',      region: 'MO' },
+  'hard rock stadium':          { city: 'Miami',            region: 'FL' },
+  'lincoln financial field':    { city: 'Philadelphia',     region: 'PA' },
+  'gillette stadium':           { city: 'Foxborough',       region: 'MA' },
+  'mercedes-benz stadium':      { city: 'Atlanta',          region: 'GA' },
+  'metlife stadium':            { city: 'East Rutherford',  region: 'NJ' },
+  // Canada
+  'bmo field':                  { city: 'Toronto',          region: 'ON' },
+  'bc place':                   { city: 'Vancouver',        region: 'BC' },
+  // Mexico
+  'estadio azteca':             { city: 'Mexico City',      region: 'Mexico' },
+  'estadio akron':              { city: 'Guadalajara',      region: 'Mexico' },
+  'estadio bbva':               { city: 'Monterrey',        region: 'Mexico' },
+};
+
+// City → region fallback
+const CITY_REGION: Record<string, string> = {
+  // USA
+  'los angeles': 'CA', 'santa clara': 'CA', 'seattle': 'WA',
+  'arlington': 'TX', 'houston': 'TX', 'kansas city': 'MO',
+  'miami': 'FL', 'philadelphia': 'PA', 'foxborough': 'MA',
+  'atlanta': 'GA', 'east rutherford': 'NJ', 'new york': 'NJ',
+  // Canada
+  'toronto': 'ON', 'vancouver': 'BC',
+  // Mexico
+  'mexico city': 'Mexico', 'guadalajara': 'Mexico', 'monterrey': 'Mexico',
+  'culiacan': 'Mexico', 'culiacán': 'Mexico',
+  'ciudad de mexico': 'Mexico', 'cdmx': 'Mexico',
+};
+
+function getVenueLocation(stadium: string | null, city: string | null): { city: string; region: string | null } | null {
+  if (stadium) {
+    const match = VENUE_LOCATION[stadium.toLowerCase()];
+    if (match) return match;
+  }
+  if (city) {
+    const region = CITY_REGION[city.toLowerCase()] ?? null;
+    return { city, region };
+  }
+  return null;
 }
 
 function getCountdown(dateStr: string): string {
@@ -39,8 +91,8 @@ export function MatchCard({ match, onPredictPress, userId }: Props) {
   });
 
   const matchDate = new Date(match.match_date);
-  const timeStr = matchDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-  const dateStr = matchDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const timeStr = matchDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+  const dateStr = matchDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
   const pointsColor =
     (prediction?.points_earned ?? 0) === 5 ? Colors.primary
@@ -48,14 +100,8 @@ export function MatchCard({ match, onPredictPress, userId }: Props) {
     : Colors.textMuted;
 
   const stageText = match.stage === 'group'
-    ? [
-        `GROUP ${match.home_team?.group_name ?? ''}`,
-        match.city,
-      ].filter(Boolean).join(' · ')
-    : [
-        (match.stage ?? '').toUpperCase(),
-        match.city,
-      ].filter(Boolean).join(' · ');
+    ? `GROUP ${match.home_team?.group_name ?? ''}`
+    : (match.stage ?? '').toUpperCase();
 
   return (
     <TouchableOpacity
@@ -65,17 +111,19 @@ export function MatchCard({ match, onPredictPress, userId }: Props) {
     >
       {/* Stage / Status Row */}
       <View style={styles.topRow}>
-        <Text style={styles.stageText}>{stageText}</Text>
-        {isLive && (
+        {/* Left: date/time or match status */}
+        {isLive ? (
           <View style={styles.liveBadge}>
             <View style={styles.liveDot} />
             <Text style={styles.liveText}>LIVE</Text>
           </View>
-        )}
-        {isFinished && <Text style={styles.finishedText}>FT</Text>}
-        {!isLive && !isFinished && (
+        ) : isFinished ? (
+          <Text style={styles.finishedText}>FT</Text>
+        ) : (
           <Text style={styles.timeText}>{dateStr} · {timeStr}</Text>
         )}
+        {/* Right: group/stage */}
+        <Text style={styles.stageText}>{stageText}</Text>
       </View>
 
       {/* Teams & Score */}
@@ -85,7 +133,7 @@ export function MatchCard({ match, onPredictPress, userId }: Props) {
           <Image
             source={{ uri: match.home_team?.flag_url ?? undefined }}
             style={styles.flag}
-            resizeMode="contain"
+            resizeMode="cover"
           />
           <Text style={styles.teamName} numberOfLines={1}>{match.home_team?.name}</Text>
         </View>
@@ -121,21 +169,25 @@ export function MatchCard({ match, onPredictPress, userId }: Props) {
           <Image
             source={{ uri: match.away_team?.flag_url ?? undefined }}
             style={styles.flag}
-            resizeMode="contain"
+            resizeMode="cover"
           />
           <Text style={styles.teamName} numberOfLines={1}>{match.away_team?.name}</Text>
         </View>
       </View>
 
-      {/* Stadium */}
-      {match.stadium && (
-        <View style={styles.venueRow}>
-          <Ionicons name="location-outline" size={12} color={Colors.textMuted} />
-          <Text style={styles.venueText} numberOfLines={1}>
-            {[match.stadium, match.city].filter(Boolean).join(', ')}
-          </Text>
-        </View>
-      )}
+      {/* Venue */}
+      {match.stadium && (() => {
+        const loc = getVenueLocation(match.stadium, match.city);
+        const venueStr = loc
+          ? [match.stadium, loc.city, loc.region].filter(Boolean).join(', ')
+          : match.stadium;
+        return (
+          <View style={styles.venueRow}>
+            <Ionicons name="location-outline" size={12} color={Colors.textMuted} />
+            <Text style={styles.venueText} numberOfLines={1}>{venueStr}</Text>
+          </View>
+        );
+      })()}
 
       {/* Win probability + form (only for scheduled matches with known teams) */}
       {!isFinished && !isLive && match.home_team && match.away_team && (
@@ -191,7 +243,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    flex: 1,
+    textAlign: 'right',
   },
   liveBadge: {
     flexDirection: 'row',
@@ -204,20 +256,20 @@ const styles = StyleSheet.create({
   },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.live },
   liveText: { color: Colors.live, fontSize: Typography.xs, fontWeight: '800' },
-  finishedText: { color: Colors.textMuted, fontSize: Typography.xs, fontWeight: '700' },
-  timeText: { color: Colors.textSecondary, fontSize: Typography.xs },
+  finishedText: { color: Colors.textMuted, fontSize: Typography.xs, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  timeText: { color: Colors.textMuted, fontSize: Typography.xs, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   teamsRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   teamSide: {
     flex: 1,
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: Spacing.xs,
   },
-  teamRight: { alignItems: 'flex-end' },
-  flag: { width: 40, height: 28, borderRadius: 4 },
-  teamName: { fontSize: Typography.sm, fontWeight: '700', color: Colors.text },
+  teamRight: {},
+  flag: { width: scale(40), height: scale(28), borderRadius: 6, overflow: 'hidden' },
+  teamName: { fontSize: Typography.sm, fontWeight: '700', color: Colors.text, textAlign: 'center' },
   scoreBox: {
     paddingHorizontal: Spacing.lg,
     alignItems: 'center',
@@ -225,7 +277,7 @@ const styles = StyleSheet.create({
   },
   score: { fontSize: Typography.xl, fontWeight: '900', color: Colors.text },
   scoreLive: { color: Colors.live },
-  vs: { fontSize: Typography.lg, fontWeight: '800', color: Colors.textMuted },
+  vs: { fontSize: Typography.base, fontWeight: '800', color: Colors.textMuted },
   countdownBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -247,13 +299,14 @@ const styles = StyleSheet.create({
   venueRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
     marginTop: Spacing.sm,
   },
   venueText: {
     color: Colors.textMuted,
     fontSize: Typography.xs,
-    flex: 1,
+    textAlign: 'center',
   },
   predictBtn: {
     backgroundColor: Colors.primary,

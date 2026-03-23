@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { upsertPrediction } from '@/lib/api';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
+import { scale } from '@/utils/responsive';
 import type { Match } from '@/types';
 
 interface Props {
@@ -163,7 +164,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  flag: { width: 56, height: 40, borderRadius: 4 },
+  flag: { width: scale(56), height: scale(40), borderRadius: 4 },
   teamName: {
     color: Colors.text,
     fontSize: Typography.sm,
@@ -187,7 +188,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.xxl,
     fontWeight: '900',
     color: Colors.primary,
-    minWidth: 36,
+    minWidth: scale(36),
     textAlign: 'center',
   },
   dash: {

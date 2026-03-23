@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
+import { scale } from '@/utils/responsive';
 import type { Prediction } from '@/types';
 
 interface Props {
@@ -75,7 +76,7 @@ const styles = StyleSheet.create({
   teamsRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm },
   teamSide: { flex: 1, alignItems: 'flex-start', gap: Spacing.xs },
   teamRight: { alignItems: 'flex-end' },
-  flag: { width: 36, height: 26, borderRadius: 3 },
+  flag: { width: scale(36), height: scale(26), borderRadius: 3 },
   teamName: { color: Colors.text, fontSize: Typography.xs, fontWeight: '600' },
   middle: { alignItems: 'center', paddingHorizontal: Spacing.md },
   predLabel: { color: Colors.textMuted, fontSize: Typography.xs, marginBottom: 2 },

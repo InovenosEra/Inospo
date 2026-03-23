@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
+import { scale } from '@/utils/responsive';
 import type { Match, Team, GroupStanding } from '@/types';
 
 interface Props {
@@ -134,7 +135,7 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: Typography.xs,
     fontWeight: '700',
-    width: 28,
+    width: scale(28),
     textAlign: 'center',
     textTransform: 'uppercase',
   },
@@ -150,14 +151,14 @@ const styles = StyleSheet.create({
   cell: {
     color: Colors.text,
     fontSize: Typography.xs,
-    width: 28,
+    width: scale(28),
     textAlign: 'center',
   },
-  ptsCell: { width: 32 },
+  ptsCell: { width: scale(32) },
   ptsText: { color: Colors.primary, fontWeight: '800' },
   positive: { color: Colors.accent },
   negative: { color: Colors.live },
-  flag: { width: 22, height: 16, borderRadius: 2 },
+  flag: { width: scale(22), height: scale(16), borderRadius: 2 },
   teamName: { color: Colors.text, fontSize: Typography.xs, fontWeight: '600', flex: 1 },
   empty: { alignItems: 'center', paddingVertical: Spacing.xxl },
   emptyText: { color: Colors.textMuted, fontSize: Typography.sm, textAlign: 'center' },

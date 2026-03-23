@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { View, Text, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
+import { scale } from '@/utils/responsive';
 import { fetchQualificationFixtures } from '@/lib/api';
 import type { QualificationFixture } from '@/types';
 
@@ -136,7 +137,7 @@ const styles = StyleSheet.create({
   matchRow: { flexDirection: 'row', alignItems: 'center' },
   teamCol: { flex: 1, alignItems: 'flex-start', gap: 4 },
   teamRight: { alignItems: 'flex-end' },
-  flag: { width: 28, height: 20, borderRadius: 2 },
+  flag: { width: scale(28), height: scale(20), borderRadius: 2 },
   team: { color: Colors.text, fontSize: Typography.sm, fontWeight: '600' },
   scoreBox: { paddingHorizontal: Spacing.md, alignItems: 'center', gap: 2 },
   score: { color: Colors.primary, fontWeight: '800', fontSize: Typography.md },

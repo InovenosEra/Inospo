@@ -54,6 +54,7 @@ export default function StatsScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={styles.navScrollView}
         contentContainerStyle={styles.navContainer}
       >
         {VIEWS.map((v) => (
@@ -101,10 +102,15 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: Colors.primary,
   },
+  navScrollView: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
   navContainer: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     gap: Spacing.sm,
+    alignItems: 'center',
   },
   navTab: {
     paddingHorizontal: Spacing.lg,

@@ -9,28 +9,13 @@ import type {
   LeaderboardEntry,
 } from '@/types';
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
-
-// ─── football-api edge function is GET-based with query params ─────────────────
+// ─── football-api edge function (POST with action in body) ────────────────────
 async function callFootballApi(action: string, params?: Record<string, string>): Promise<any> {
-  const searchParams = new URLSearchParams({ action, ...params });
-  const url = `${SUPABASE_URL}/functions/v1/football-api?${searchParams.toString()}`;
-
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-      'apikey': SUPABASE_ANON_KEY,
-      'Content-Type': 'application/json',
-    },
+  const { data, error } = await supabase.functions.invoke('football-api', {
+    body: { action, ...params },
   });
-
-  if (!response.ok) {
-    throw new Error(`football-api error: ${response.status}`);
-  }
-
-  return response.json();
+  if (error) throw error;
+  return data;
 }
 
 // ─── Matches ───────────────────────────────────────────────────────────────────

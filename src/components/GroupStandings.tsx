@@ -30,9 +30,7 @@ export function GroupStandings({ matches, teams }: Props) {
           <View style={styles.tableHeader}>
             <Text style={[styles.headerCell, { flex: 1 }]}>Team</Text>
             <Text style={styles.headerCell}>P</Text>
-            <Text style={styles.headerCell}>W</Text>
-            <Text style={styles.headerCell}>D</Text>
-            <Text style={styles.headerCell}>L</Text>
+            <Text style={[styles.headerCell, styles.faCell]}>F:A</Text>
             <Text style={styles.headerCell}>GD</Text>
             <Text style={[styles.headerCell, styles.ptsCell]}>Pts</Text>
           </View>
@@ -43,9 +41,9 @@ export function GroupStandings({ matches, teams }: Props) {
                 <Text style={styles.teamName} numberOfLines={1}>{standing.team.name}</Text>
               </View>
               <Text style={styles.cell}>{standing.played}</Text>
-              <Text style={styles.cell}>{standing.won}</Text>
-              <Text style={styles.cell}>{standing.drawn}</Text>
-              <Text style={styles.cell}>{standing.lost}</Text>
+              <Text style={[styles.cell, styles.faCell]}>
+                {standing.goals_for}:{standing.goals_against}
+              </Text>
               <Text style={[styles.cell, standing.goal_difference > 0 && styles.positive, standing.goal_difference < 0 && styles.negative]}>
                 {standing.goal_difference > 0 ? '+' : ''}{standing.goal_difference}
               </Text>
@@ -154,6 +152,7 @@ const styles = StyleSheet.create({
     width: scale(28),
     textAlign: 'center',
   },
+  faCell: { width: scale(36) },
   ptsCell: { width: scale(32) },
   ptsText: { color: Colors.primary, fontWeight: '800' },
   positive: { color: Colors.accent },

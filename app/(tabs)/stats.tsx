@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
 import { fetchMatches, fetchTeams, fetchTopScorers, fetchTopAssists } from '@/lib/api';
 import { GroupStandings } from '@/components/GroupStandings';
 import { KnockoutBracket } from '@/components/KnockoutBracket';
@@ -16,11 +17,13 @@ import { QualifiersView } from '@/components/QualifiersView';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import type { StatsView } from '@/types';
 
-const VIEWS: Array<{ key: StatsView; icon: string; label: string }> = [
-  { key: 'qualifiers', icon: '🚩', label: 'Qualifiers' },
-  { key: 'standings', icon: '👥', label: 'Groups' },
-  { key: 'bracket',   icon: '🏆', label: 'Knockout' },
-  { key: 'scorers',   icon: '👤', label: 'Stats' },
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+const VIEWS: Array<{ key: StatsView; icon: IoniconName; iconActive: IoniconName; label: string }> = [
+  { key: 'qualifiers', icon: 'flag-outline',    iconActive: 'flag',    label: 'Qualifiers' },
+  { key: 'standings',  icon: 'people-outline',  iconActive: 'people',  label: 'Groups' },
+  { key: 'bracket',    icon: 'trophy-outline',  iconActive: 'trophy',  label: 'Knockout' },
+  { key: 'scorers',    icon: 'person-outline',  iconActive: 'person',  label: 'Stats' },
 ];
 
 export default function StatsScreen() {
@@ -95,7 +98,11 @@ export default function StatsScreen() {
             onPress={() => setActiveView(v.key)}
             activeOpacity={0.7}
           >
-            <Text style={styles.navIcon}>{v.icon}</Text>
+            <Ionicons
+              name={activeView === v.key ? v.iconActive : v.icon}
+              size={15}
+              color={activeView === v.key ? Colors.primary : Colors.textMuted}
+            />
             <Text style={[styles.navLabel, activeView === v.key && styles.navLabelActive]}>
               {v.label}
             </Text>
@@ -222,7 +229,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primaryDim,
     borderColor: Colors.primary,
   },
-  navIcon: { fontSize: 11 },
   navLabel: {
     fontSize: 11,
     fontWeight: '600',

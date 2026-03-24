@@ -12,7 +12,6 @@ export function GroupStandings({ matches, teams }: Props) {
   const groups = computeStandings(matches, teams);
   const groupKeys = Object.keys(groups).sort();
 
-  // Always show all groups even with 0 points — tournament hasn't started yet
   if (groupKeys.length === 0) {
     return (
       <View style={styles.empty}>
@@ -26,33 +25,60 @@ export function GroupStandings({ matches, teams }: Props) {
       {groupKeys.map((groupName) => (
         <View key={groupName} style={styles.groupCard}>
           <Text style={styles.groupTitle}>Group {groupName}</Text>
-          {/* Header */}
+
+          {/* Header row */}
           <View style={styles.tableHeader}>
-            <Text style={[styles.headerCell, { flex: 1 }]}>Team</Text>
+            {/* left gutter: dot + rank + flag space */}
+            <View style={styles.rankGutter} />
+            <Text style={[styles.headerCell, styles.teamHeaderCell]}>Team</Text>
             <Text style={styles.headerCell}>P</Text>
-            <Text style={[styles.headerCell, styles.faCell]}>F:A</Text>
+            <Text style={styles.headerCell}>W</Text>
+            <Text style={styles.headerCell}>D</Text>
+            <Text style={styles.headerCell}>L</Text>
             <Text style={styles.headerCell}>GD</Text>
-            <Text style={[styles.headerCell, styles.ptsCell]}>Pts</Text>
+            <Text style={[styles.headerCell, styles.ptsHeaderCell]}>Pts</Text>
           </View>
-          {groups[groupName].map((standing, idx) => (
-            <View key={standing.team.id} style={[styles.row, idx < 2 && styles.rowQualified]}>
-              <View style={[styles.cell, { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
-                <Image source={{ uri: standing.team.flag_url ?? undefined }} style={styles.flag} resizeMode="contain" />
-                <Text style={styles.teamName} numberOfLines={1}>{standing.team.name}</Text>
+
+          {groups[groupName].map((standing, idx) => {
+            const rowBg =
+              idx < 2  ? 'rgba(34, 197, 94, 0.08)' :
+              idx === 2 ? 'rgba(245, 158, 11, 0.08)' :
+              undefined;
+
+            return (
+              <View
+                key={standing.team.id}
+                style={[styles.row, idx < groups[groupName].length - 1 && styles.rowBorder, rowBg ? { backgroundColor: rowBg } : undefined]}
+              >
+                {/* Rank */}
+                <View style={styles.rankGutter}>
+                  <Text style={styles.rank}>{idx + 1}</Text>
+                </View>
+
+                {/* Flag + name */}
+                <View style={styles.teamCell}>
+                  <Image
+                    source={{ uri: standing.team.flag_url ?? undefined }}
+                    style={styles.flag}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.teamName} numberOfLines={1}>{standing.team.name}</Text>
+                </View>
+
+                <Text style={styles.cell}>{standing.played}</Text>
+                <Text style={styles.cell}>{standing.won}</Text>
+                <Text style={styles.cell}>{standing.drawn}</Text>
+                <Text style={styles.cell}>{standing.lost}</Text>
+                <Text style={styles.cell}>
+                  {standing.goal_difference > 0 ? '+' : ''}{standing.goal_difference}
+                </Text>
+                <Text style={[styles.cell, styles.ptsCell]}>{standing.points}</Text>
               </View>
-              <Text style={styles.cell}>{standing.played}</Text>
-              <Text style={[styles.cell, styles.faCell]}>
-                {standing.goals_for}:{standing.goals_against}
-              </Text>
-              <Text style={[styles.cell, standing.goal_difference > 0 && styles.positive, standing.goal_difference < 0 && styles.negative]}>
-                {standing.goal_difference > 0 ? '+' : ''}{standing.goal_difference}
-              </Text>
-              <Text style={[styles.cell, styles.ptsCell, styles.ptsText]}>{standing.points}</Text>
-            </View>
-          ))}
+            );
+          })}
         </View>
       ))}
-      <Text style={styles.qualifier}>Top 2 per group advance to Round of 32</Text>
+      <Text style={styles.qualifier}>Top 2 per group + best 8 third-place advance</Text>
     </View>
   );
 }
@@ -60,7 +86,6 @@ export function GroupStandings({ matches, teams }: Props) {
 function computeStandings(matches: Match[], teams: Team[]): Record<string, GroupStanding[]> {
   const standings: Record<string, Record<string, GroupStanding>> = {};
 
-  // Initialize
   for (const team of teams) {
     if (!team.group_name) continue;
     if (!standings[team.group_name]) standings[team.group_name] = {};
@@ -72,7 +97,6 @@ function computeStandings(matches: Match[], teams: Team[]): Record<string, Group
     };
   }
 
-  // Calculate from finished matches
   for (const match of matches) {
     if (match.status !== 'finished' || match.home_score == null || match.away_score == null) continue;
     const group = match.home_team?.group_name;
@@ -95,15 +119,16 @@ function computeStandings(matches: Match[], teams: Team[]): Record<string, Group
     }
   }
 
-  // Sort each group
   const result: Record<string, GroupStanding[]> = {};
-  for (const [group, teams] of Object.entries(standings)) {
-    result[group] = Object.values(teams)
+  for (const [group, ts] of Object.entries(standings)) {
+    result[group] = Object.values(ts)
       .map((s) => ({ ...s, goal_difference: s.goals_for - s.goals_against }))
       .sort((a, b) => b.points - a.points || b.goal_difference - a.goal_difference || b.goals_for - a.goals_for);
   }
   return result;
 }
+
+const COL = scale(28);
 
 const styles = StyleSheet.create({
   groupCard: {
@@ -111,56 +136,99 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Colors.border,
-    padding: Spacing.md,
+    overflow: 'hidden',
     marginBottom: Spacing.lg,
   },
   groupTitle: {
     color: Colors.primary,
     fontSize: Typography.base,
     fontWeight: '800',
-    marginBottom: Spacing.md,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
+    letterSpacing: 0.5,
   },
   tableHeader: {
     flexDirection: 'row',
-    paddingBottom: Spacing.sm,
+    alignItems: 'center',
+    paddingLeft: Spacing.xs,
+    paddingRight: Spacing.xs,
+    paddingVertical: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
-    marginBottom: Spacing.xs,
+  },
+  rankGutter: {
+    width: scale(20),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rank: {
+    color: Colors.textMuted,
+    fontSize: Typography.xs,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  teamHeaderCell: {
+    flex: 1,
+    textAlign: 'left',
+    width: undefined,
   },
   headerCell: {
     color: Colors.textMuted,
     fontSize: Typography.xs,
-    fontWeight: '700',
-    width: scale(28),
+    fontWeight: '600',
+    width: COL,
     textAlign: 'center',
     textTransform: 'uppercase',
+  },
+  ptsHeaderCell: {
+    color: Colors.primary,
+    fontWeight: '800',
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.sm,
+    paddingLeft: Spacing.xs,
+    paddingRight: Spacing.xs,
+    paddingVertical: 10,
   },
-  rowQualified: {
-    backgroundColor: Colors.accentDim,
+  rowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  teamCell: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minWidth: 0,
+  },
+  flag: {
+    width: scale(28),
+    height: scale(20),
+    borderRadius: 3,
+  },
+  teamName: {
+    color: Colors.text,
+    fontSize: Typography.xs,
+    fontWeight: '600',
+    flex: 1,
   },
   cell: {
     color: Colors.text,
     fontSize: Typography.xs,
-    width: scale(28),
+    width: COL,
     textAlign: 'center',
   },
-  faCell: { width: scale(36) },
-  ptsCell: { width: scale(32) },
-  ptsText: { color: Colors.primary, fontWeight: '800' },
-  positive: { color: Colors.accent },
-  negative: { color: Colors.live },
-  flag: { width: scale(22), height: scale(16), borderRadius: 2 },
-  teamName: { color: Colors.text, fontSize: Typography.xs, fontWeight: '600', flex: 1 },
+  ptsCell: {
+    color: Colors.primary,
+    fontWeight: '800',
+    fontSize: Typography.sm,
+  },
   empty: { alignItems: 'center', paddingVertical: Spacing.xxl },
-  emptyText: { color: Colors.textMuted, fontSize: Typography.sm, textAlign: 'center' },
+  emptyText: { color: Colors.textMuted, fontSize: Typography.sm },
   qualifier: {
     color: Colors.textMuted,
     fontSize: Typography.xs,

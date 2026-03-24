@@ -6,16 +6,51 @@ import {
   StyleSheet,
   RefreshControl,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { fetchMatches } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { MatchCard } from '@/components/MatchCard';
 import { AuthModal } from '@/components/AuthModal';
 import { PredictionModal } from '@/components/PredictionModal';
-import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
+import { Colors, Spacing, Typography, Radius, Shadows } from '@/constants/theme';
+import { scale } from '@/utils/responsive';
 import type { Match } from '@/types';
+
+// ── Static qualification playoff fixtures ─────────────────────────────────────
+
+interface PlayoffFixture {
+  id: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeFlag: string;
+  awayFlag: string;
+  date: string;
+  venue: string;
+  stage: string;
+  round: string;
+}
+
+const PLAYOFF_FIXTURES: PlayoffFixture[] = [
+  // UEFA Path A
+  { id: 'wal-bih', homeTeam: 'Wales',          awayTeam: 'Bosnia & Herz.', homeFlag: 'https://flagcdn.com/w40/gb-wls.png', awayFlag: 'https://flagcdn.com/w40/ba.png', date: '2026-03-26T20:45:00', venue: 'Cardiff City Stadium', stage: 'UEFA Playoffs',           round: 'Path A · Semi-final' },
+  { id: 'ita-nir', homeTeam: 'Italy',           awayTeam: 'N. Ireland',     homeFlag: 'https://flagcdn.com/w40/it.png',     awayFlag: 'https://flagcdn.com/w40/gb-nir.png', date: '2026-03-26T20:45:00', venue: 'Stadio Olimpico, Rome', stage: 'UEFA Playoffs',      round: 'Path A · Semi-final' },
+  // UEFA Path B
+  { id: 'pol-alb', homeTeam: 'Poland',          awayTeam: 'Albania',        homeFlag: 'https://flagcdn.com/w40/pl.png',     awayFlag: 'https://flagcdn.com/w40/al.png', date: '2026-03-26T20:45:00', venue: 'PGE Narodowy, Warsaw',  stage: 'UEFA Playoffs',          round: 'Path B · Semi-final' },
+  { id: 'ukr-swe', homeTeam: 'Ukraine',         awayTeam: 'Sweden',         homeFlag: 'https://flagcdn.com/w40/ua.png',     awayFlag: 'https://flagcdn.com/w40/se.png', date: '2026-03-27T20:45:00', venue: 'Vasyl Lobanovskyi Stadium', stage: 'UEFA Playoffs',    round: 'Path B · Semi-final' },
+  // UEFA Path C
+  { id: 'svk-kvx', homeTeam: 'Slovakia',        awayTeam: 'Kosovo',         homeFlag: 'https://flagcdn.com/w40/sk.png',     awayFlag: 'https://flagcdn.com/w40/xk.png', date: '2026-03-26T20:45:00', venue: 'Tehelné pole, Bratislava', stage: 'UEFA Playoffs',    round: 'Path C · Semi-final' },
+  { id: 'tur-rou', homeTeam: 'Türkiye',         awayTeam: 'Romania',        homeFlag: 'https://flagcdn.com/w40/tr.png',     awayFlag: 'https://flagcdn.com/w40/ro.png', date: '2026-03-27T20:45:00', venue: 'Atatürk Olimpiyat, Istanbul', stage: 'UEFA Playoffs',  round: 'Path C · Semi-final' },
+  // UEFA Path D
+  { id: 'cze-irl', homeTeam: 'Czech Republic',  awayTeam: 'Rep. Ireland',   homeFlag: 'https://flagcdn.com/w40/cz.png',     awayFlag: 'https://flagcdn.com/w40/ie.png', date: '2026-03-26T20:45:00', venue: 'Letná, Prague',          stage: 'UEFA Playoffs',          round: 'Path D · Semi-final' },
+  { id: 'den-mkd', homeTeam: 'Denmark',         awayTeam: 'N. Macedonia',   homeFlag: 'https://flagcdn.com/w40/dk.png',     awayFlag: 'https://flagcdn.com/w40/mk.png', date: '2026-03-27T20:45:00', venue: 'Parken, Copenhagen',     stage: 'UEFA Playoffs',          round: 'Path D · Semi-final' },
+  // Intercontinental
+  { id: 'ncl-jam', homeTeam: 'New Caledonia',   awayTeam: 'Jamaica',        homeFlag: 'https://flagcdn.com/w40/nc.png',     awayFlag: 'https://flagcdn.com/w40/jm.png', date: '2026-03-26T18:00:00', venue: 'Estadio BBVA, Monterrey',    stage: 'Intercontinental Playoffs', round: 'Pathway 1 · Semi-final' },
+  { id: 'bol-sur', homeTeam: 'Bolivia',         awayTeam: 'Suriname',       homeFlag: 'https://flagcdn.com/w40/bo.png',     awayFlag: 'https://flagcdn.com/w40/sr.png', date: '2026-03-26T21:00:00', venue: 'Estadio Akron, Guadalajara', stage: 'Intercontinental Playoffs', round: 'Pathway 2 · Semi-final' },
+];
 
 export default function MatchesScreen() {
   const insets = useSafeAreaInsets();
@@ -31,6 +66,7 @@ export default function MatchesScreen() {
     queryFn: fetchMatches,
     refetchInterval: 30 * 1000,
   });
+
 
   // Sort all matches chronologically
   const sortedMatches = useMemo(
@@ -102,6 +138,7 @@ export default function MatchesScreen() {
         ref={flatListRef}
         data={displayMatches}
         keyExtractor={(item) => item.id}
+        ListHeaderComponent={!liveOnly ? <PlayoffsSection fixtures={PLAYOFF_FIXTURES} /> : null}
         renderItem={({ item }) => (
           <MatchCard
             match={item}
@@ -148,6 +185,156 @@ export default function MatchesScreen() {
     </View>
   );
 }
+
+// ── Playoffs section ─────────────────────────────────────────────────────────
+
+function PlayoffsSection({ fixtures }: { fixtures: PlayoffFixture[] }) {
+  return (
+    <View>
+      {/* Section label */}
+      <View style={pStyles.sectionLabel}>
+        <Text style={pStyles.sectionLabelText}>🚩 QUALIFICATION PLAYOFFS</Text>
+      </View>
+
+      {fixtures.map((f) => (
+        <PlayoffMatchCard key={f.id} fixture={f} />
+      ))}
+
+      {/* Group stage section label */}
+      <View style={pStyles.sectionLabel}>
+        <Text style={pStyles.sectionLabelText}>⚽ GROUP STAGE</Text>
+      </View>
+    </View>
+  );
+}
+
+function PlayoffMatchCard({ fixture }: { fixture: PlayoffFixture }) {
+  const date = new Date(fixture.date);
+  const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+  const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+  return (
+    <View style={pStyles.card}>
+      {/* Top row: date · time  |  round */}
+      <View style={pStyles.topRow}>
+        <Text style={pStyles.timeText}>{dateStr} · {timeStr}</Text>
+        <Text style={pStyles.stageText}>{fixture.round.toUpperCase()}</Text>
+      </View>
+
+      {/* Teams row — matches MatchCard layout exactly */}
+      <View style={pStyles.teamsRow}>
+        <View style={pStyles.teamSide}>
+          <Image source={{ uri: fixture.homeFlag }} style={pStyles.flag} resizeMode="cover" />
+          <Text style={pStyles.teamName} numberOfLines={1}>{fixture.homeTeam}</Text>
+        </View>
+
+        <View style={pStyles.scoreBox}>
+          <Text style={pStyles.vs}>VS</Text>
+        </View>
+
+        <View style={pStyles.teamSide}>
+          <Image source={{ uri: fixture.awayFlag }} style={pStyles.flag} resizeMode="cover" />
+          <Text style={pStyles.teamName} numberOfLines={1}>{fixture.awayTeam}</Text>
+        </View>
+      </View>
+
+      {/* Venue */}
+      {fixture.venue ? (
+        <View style={pStyles.venueRow}>
+          <Ionicons name="location-outline" size={12} color={Colors.textMuted} />
+          <Text style={pStyles.venueText} numberOfLines={1}>{fixture.venue}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+const pStyles = StyleSheet.create({
+  sectionLabel: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: 2,
+    marginBottom: 2,
+  },
+  sectionLabelText: {
+    color: Colors.textMuted,
+    fontSize: Typography.xs,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
+  // card matches MatchCard style
+  card: {
+    backgroundColor: Colors.card,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    ...Shadows.card,
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  timeText: {
+    color: Colors.textMuted,
+    fontSize: Typography.xs,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  stageText: {
+    fontSize: Typography.xs,
+    color: Colors.textMuted,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textAlign: 'right',
+  },
+  teamsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  teamSide: {
+    flex: 1,
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  flag: {
+    width: scale(40),
+    height: scale(28),
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  teamName: {
+    fontSize: Typography.sm,
+    fontWeight: '700',
+    color: Colors.text,
+    textAlign: 'center',
+  },
+  scoreBox: {
+    paddingHorizontal: Spacing.lg,
+    alignItems: 'center',
+  },
+  vs: {
+    fontSize: Typography.lg,
+    fontWeight: '900',
+    color: Colors.textMuted,
+  },
+  venueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: Spacing.sm,
+  },
+  venueText: {
+    color: Colors.textMuted,
+    fontSize: Typography.xs,
+    flex: 1,
+  },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {

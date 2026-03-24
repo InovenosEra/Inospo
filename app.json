@@ -7,11 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "inospo",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./assets/images/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0B1124"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.inovenos.inospo",
@@ -31,13 +26,7 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store",
-      [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#0B1124"
-        }
-      ]
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true

@@ -1,19 +1,15 @@
 import 'react-native-url-polyfill/auto';
-import { useEffect } from 'react';
+import { useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import * as SplashScreen from 'expo-splash-screen';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { queryClient } from '@/lib/queryClient';
 import { Colors } from '@/constants/theme';
-
-SplashScreen.preventAutoHideAsync();
+import SplashAnimation from '@/components/SplashAnimation';
 
 export default function RootLayout() {
-  useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
+  const [splashDone, setSplashDone] = useState(false);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -30,6 +26,9 @@ export default function RootLayout() {
           <Stack.Screen name="match/[id]" options={{ headerShown: false, presentation: 'card' }} />
           <Stack.Screen name="team/[id]" options={{ headerShown: false, presentation: 'card' }} />
         </Stack>
+        {!splashDone && (
+          <SplashAnimation onFinish={() => setSplashDone(true)} />
+        )}
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

@@ -366,6 +366,20 @@ export async function fetchMatchLineups(fixtureId: string) {
   }
 }
 
+// Match Player Stats (ratings): direct API-Football call
+export async function fetchMatchPlayerStats(fixtureId: string) {
+  try {
+    const resp = await fetch(
+      `https://v3.football.api-sports.io/fixtures/players?fixture=${fixtureId}`,
+      { headers: { 'x-apisports-key': '99feb45f7f73a93bf78f2958c79c2224' } }
+    );
+    const json = await resp.json();
+    return (json?.response || []) as any[];
+  } catch {
+    return [];
+  }
+}
+
 // H2H: POST via edge function (sends team names for API-Football lookup)
 export async function fetchH2H(homeTeam: string, awayTeam: string) {
   try {

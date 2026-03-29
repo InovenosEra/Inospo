@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -20,6 +21,7 @@ import {
   fetchMatchStatistics,
   fetchMatchEvents,
   fetchMatchLineups,
+  fetchMatchPlayerStats,
 } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { PredictionModal } from '@/components/PredictionModal';
@@ -141,7 +143,7 @@ export default function MatchDetailScreen() {
   const { data: eventsData = [], isLoading: eventsLoading } = useQuery({
     queryKey: ['match-events', fixtureId],
     queryFn: () => fetchMatchEvents(fixtureId!),
-    enabled: activeTab === 'events' && !!fixtureId,
+    enabled: !!fixtureId,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -149,6 +151,14 @@ export default function MatchDetailScreen() {
   const { data: lineupsData = [], isLoading: lineupsLoading } = useQuery({
     queryKey: ['match-lineups', fixtureId],
     queryFn: () => fetchMatchLineups(fixtureId!),
+    enabled: activeTab === 'lineups' && !!fixtureId,
+    staleTime: 30 * 60 * 1000,
+  });
+
+  // ── Player Stats (ratings) ────────────────────────────────────────────────
+  const { data: playerStatsData = [] } = useQuery({
+    queryKey: ['match-player-stats', fixtureId],
+    queryFn: () => fetchMatchPlayerStats(fixtureId!),
     enabled: activeTab === 'lineups' && !!fixtureId,
     staleTime: 30 * 60 * 1000,
   });
@@ -171,12 +181,8 @@ export default function MatchDetailScreen() {
     );
   }
 
-  const displayDate = dateStr
-    ? new Date(dateStr).toLocaleDateString('en-US', {
-        weekday: 'short', month: 'short', day: 'numeric',
-      }) + ' · ' + new Date(dateStr).toLocaleTimeString('en-US', {
-        hour: '2-digit', minute: '2-digit', hour12: false,
-      })
+  const shortDate = dateStr
+    ? new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })
     : '';
 
   const tabs: { key: TabKey; label: string }[] = [
@@ -200,21 +206,9 @@ export default function MatchDetailScreen() {
       >
         {/* ── Match Hero Card ── */}
         <View style={styles.heroCard}>
-          {/* Stage chip + live/ft badge */}
-          <View style={styles.heroTop}>
-            {stage ? (
-              <Text style={styles.heroStage}>{stage.toUpperCase()}</Text>
-            ) : (
-              <View />
-            )}
-            {isLive && (
-              <View style={styles.liveBadge}>
-                <View style={styles.liveDot} />
-                <Text style={styles.liveText}>LIVE</Text>
-              </View>
-            )}
-            {isFinished && <Text style={styles.ftBadge}>FT</Text>}
-          </View>
+          {/* Title */}
+          <Text style={styles.heroTitle}>{homeTeamName} vs {awayTeamName}</Text>
+          {stage ? <Text style={styles.heroSubtitle}>{stage}</Text> : null}
 
           {/* Teams + Score */}
           <View style={styles.teamsRow}>
@@ -224,6 +218,17 @@ export default function MatchDetailScreen() {
             </View>
 
             <View style={styles.scoreBlock}>
+              {isLive && (
+                <View style={styles.liveBadge}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.liveText}>LIVE</Text>
+                </View>
+              )}
+              {isFinished && (
+                <View style={styles.endedBadge}>
+                  <Text style={styles.endedText}>Ended</Text>
+                </View>
+              )}
               {isFinished || isLive ? (
                 <Text style={[styles.scoreText, isLive && styles.scoreLive]}>
                   {scoreDisplay ?? '? – ?'}
@@ -231,6 +236,7 @@ export default function MatchDetailScreen() {
               ) : (
                 <Text style={styles.vsText}>VS</Text>
               )}
+              {shortDate ? <Text style={styles.scoreDateText}>{shortDate}</Text> : null}
             </View>
 
             <View style={styles.teamBlock}>
@@ -239,21 +245,13 @@ export default function MatchDetailScreen() {
             </View>
           </View>
 
-          {/* Date + Venue */}
-          <View style={styles.metaSection}>
-            {displayDate ? (
-              <View style={styles.metaRow}>
-                <Ionicons name="calendar-outline" size={13} color={Colors.textMuted} />
-                <Text style={styles.metaText}>{displayDate}</Text>
-              </View>
-            ) : null}
-            {venue ? (
-              <View style={styles.metaRow}>
-                <Ionicons name="location-outline" size={13} color={Colors.textMuted} />
-                <Text style={styles.metaText} numberOfLines={1}>{venue}</Text>
-              </View>
-            ) : null}
-          </View>
+          {/* Venue */}
+          {venue ? (
+            <View style={styles.metaRow}>
+              <Ionicons name="location-outline" size={12} color={Colors.textMuted} />
+              <Text style={styles.metaText} numberOfLines={1}>{venue}</Text>
+            </View>
+          ) : null}
 
           {/* Predict Button (group stage only) */}
           {isScheduled && !isPlayoff && isAuthenticated && (
@@ -327,7 +325,13 @@ export default function MatchDetailScreen() {
           />
         )}
         {activeTab === 'lineups' && (
-          <LineupsTab loading={lineupsLoading} data={lineupsData} hasFixtureId={!!fixtureId} />
+          <LineupsTab
+            loading={lineupsLoading}
+            data={lineupsData}
+            hasFixtureId={!!fixtureId}
+            events={eventsData}
+            playerStatsData={playerStatsData}
+          />
         )}
         {activeTab === 'events' && (
           <EventsTab loading={eventsLoading} data={eventsData} hasFixtureId={!!fixtureId} isScheduled={isScheduled} />
@@ -522,11 +526,36 @@ const statStyles = StyleSheet.create({
 
 // ── Lineups Tab ───────────────────────────────────────────────────────────────
 
-function LineupsTab({ loading, data, hasFixtureId }: {
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function getRatingColor(r: number) {
+  if (r >= 8) return '#3B82F6';
+  if (r >= 7) return '#22C55E';
+  if (r >= 6) return '#F59E0B';
+  return '#EF4444';
+}
+
+function buildRatingMap(playerStatsData: any[]): Map<number, string> {
+  const map = new Map<number, string>();
+  for (const teamData of playerStatsData) {
+    for (const entry of teamData.players || []) {
+      const id = entry.player?.id;
+      const rating = entry.statistics?.[0]?.games?.rating;
+      if (id && rating) map.set(id, parseFloat(rating).toFixed(1));
+    }
+  }
+  return map;
+}
+
+function LineupsTab({ loading, data, hasFixtureId, events, playerStatsData }: {
   loading: boolean;
   data: any[];
   hasFixtureId: boolean;
+  events: any[];
+  playerStatsData: any[];
 }) {
+  const [selectedIdx, setSelectedIdx] = useState(0);
+
   if (!hasFixtureId) {
     return (
       <View style={styles.comingSoon}>
@@ -549,75 +578,402 @@ function LineupsTab({ loading, data, hasFixtureId }: {
     );
   }
 
+  const team = data[selectedIdx] ?? data[0];
+  const ratingMap = buildRatingMap(playerStatsData);
+
   return (
     <View style={lineupStyles.container}>
-      {data.map((team: any) => (
-        <View key={team.team?.id} style={lineupStyles.teamSection}>
-          <View style={lineupStyles.teamHeader}>
-            <Image source={{ uri: team.team?.logo }} style={lineupStyles.teamLogo} />
-            <Text style={lineupStyles.teamName}>{team.team?.name}</Text>
-            <Text style={lineupStyles.formation}>{team.formation}</Text>
-          </View>
-          <Text style={lineupStyles.sectionLabel}>STARTING XI</Text>
-          {(team.startXI || []).map((p: any, i: number) => (
-            <View key={p.player?.id ?? i} style={lineupStyles.playerRow}>
-              <Text style={lineupStyles.playerNum}>{p.player?.number}</Text>
-              <Text style={lineupStyles.playerName}>{p.player?.name}</Text>
-              <Text style={lineupStyles.playerPos}>{p.player?.pos}</Text>
-            </View>
-          ))}
-          {team.substitutes?.length > 0 && (
+      {/* Team selector */}
+      <View style={lineupStyles.teamTabs}>
+        {data.map((t: any, i: number) => (
+          <TouchableOpacity
+            key={t.team?.id ?? i}
+            style={[lineupStyles.teamTab, selectedIdx === i && lineupStyles.teamTabActive]}
+            onPress={() => setSelectedIdx(i)}
+            activeOpacity={0.8}
+          >
+            <Text style={[lineupStyles.teamTabText, selectedIdx === i && lineupStyles.teamTabTextActive]}>
+              {t.team?.name}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Pitch */}
+      <PitchFormation team={team} events={events} ratingMap={ratingMap} />
+
+      {/* Substitutes */}
+      {team.substitutes?.length > 0 && (
+        <View style={lineupStyles.subsSection}>
+          <Text style={lineupStyles.subsTitle}>SUBSTITUTES</Text>
+          {team.substitutes.map((s: any, i: number) => {
+            const rating = ratingMap.get(s.player?.id);
+            return (
+              <View key={s.player?.id ?? i} style={lineupStyles.subItem}>
+                <Text style={lineupStyles.subNum}>{s.player?.number}</Text>
+                <Text style={lineupStyles.subName} numberOfLines={1}>{s.player?.name}</Text>
+                {rating && (
+                  <View style={[lineupStyles.subRating, { backgroundColor: getRatingColor(parseFloat(rating)) }]}>
+                    <Text style={lineupStyles.subRatingText}>{rating}</Text>
+                  </View>
+                )}
+                <Text style={lineupStyles.subPos}>{s.player?.pos}</Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ── Pitch Formation ────────────────────────────────────────────────────────────
+
+const STRIPE_COLORS = ['#236b2f', '#1e6030'];
+const NUM_STRIPES = 10;
+
+function PitchFormation({
+  team, events, ratingMap,
+}: {
+  team: any;
+  events: any[];
+  ratingMap: Map<number, string>;
+}) {
+  const screenW = Dimensions.get('window').width;
+  const pitchW = screenW - Spacing.lg * 2;
+  const pitchH = Math.round(pitchW * 1.3);
+  const BUBBLE = scale(46);
+  const HALF = BUBBLE / 2;
+  const NAME_H = 20;
+
+  const formGroups = (team.formation || '4-4-2').split('-').map(Number);
+  const totalRows = 1 + formGroups.length;
+
+  const rowMap: Record<number, any[]> = {};
+  for (const { player } of team.startXI || []) {
+    if (!player?.grid) continue;
+    const [r, c] = player.grid.split(':').map(Number);
+    if (!rowMap[r]) rowMap[r] = [];
+    rowMap[r].push({ ...player, _col: c });
+  }
+  for (const r of Object.keys(rowMap)) {
+    rowMap[Number(r)].sort((a: any, b: any) => a._col - b._col);
+  }
+
+  const V_PAD = BUBBLE * 0.9;
+  const getY = (row: number) =>
+    V_PAD + (1 - (row - 1) / (totalRows - 1)) * (pitchH - V_PAD * 2);
+  const getX = (idx: number, total: number) => {
+    if (total <= 1) return pitchW / 2;
+    const MIN_PAD = BUBBLE * 0.6;
+    const spacing = Math.min(pitchW * 0.25, (pitchW - MIN_PAD * 2) / (total - 1));
+    const totalSpan = (total - 1) * spacing;
+    return (pitchW - totalSpan) / 2 + idx * spacing;
+  };
+  const LINE = 'rgba(255,255,255,0.5)';
+  const stripeH = pitchH / NUM_STRIPES;
+
+  return (
+    <View style={{ width: pitchW, height: pitchH + NAME_H, marginBottom: Spacing.sm }}>
+      {/* Pitch base */}
+      <View style={{
+        position: 'absolute', top: 0, left: 0,
+        width: pitchW, height: pitchH,
+        borderRadius: Radius.lg, overflow: 'hidden',
+        // 3D shadow effect
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.5,
+        shadowRadius: 12,
+        elevation: 10,
+      }}>
+        {/* Alternating grass stripes */}
+        {Array.from({ length: NUM_STRIPES }).map((_, i) => (
+          <View
+            key={i}
+            style={{
+              position: 'absolute',
+              left: 0, right: 0,
+              top: i * stripeH,
+              height: stripeH + 0.5,
+              backgroundColor: STRIPE_COLORS[i % 2],
+            }}
+          />
+        ))}
+
+        {/* Pitch lines on top of stripes */}
+        {/* Outer border inset */}
+        <View style={{ position: 'absolute', top: 6, left: 6, right: 6, bottom: 6, borderWidth: 1.5, borderColor: LINE, borderRadius: 4 }} />
+        {/* Half line */}
+        <View style={{ position: 'absolute', left: 8, right: 8, top: pitchH * 0.5 - 0.75, height: 1.5, backgroundColor: LINE }} />
+        {/* Center circle */}
+        <View style={{
+          position: 'absolute',
+          width: pitchW * 0.27, height: pitchW * 0.27,
+          borderRadius: pitchW * 0.135,
+          borderWidth: 1.5, borderColor: LINE,
+          left: pitchW * 0.5 - pitchW * 0.135,
+          top: pitchH * 0.5 - pitchW * 0.135,
+        }} />
+        {/* Center spot */}
+        <View style={{ position: 'absolute', width: 5, height: 5, borderRadius: 3, backgroundColor: LINE, left: pitchW * 0.5 - 2.5, top: pitchH * 0.5 - 2.5 }} />
+        {/* Top penalty area */}
+        <View style={{ position: 'absolute', left: pitchW * 0.19, width: pitchW * 0.62, top: 8, height: pitchH * 0.165, borderLeftWidth: 1.5, borderRightWidth: 1.5, borderBottomWidth: 1.5, borderColor: LINE }} />
+        {/* Top goal area */}
+        <View style={{ position: 'absolute', left: pitchW * 0.37, width: pitchW * 0.26, top: 8, height: pitchH * 0.07, borderLeftWidth: 1.5, borderRightWidth: 1.5, borderBottomWidth: 1.5, borderColor: LINE }} />
+        {/* Top penalty arc */}
+        <View style={{
+          position: 'absolute',
+          width: pitchW * 0.2, height: pitchW * 0.1,
+          borderRadius: pitchW * 0.1,
+          borderWidth: 1.5, borderColor: LINE,
+          left: pitchW * 0.4,
+          top: pitchH * 0.165 + 6,
+          borderTopWidth: 0,
+          overflow: 'hidden',
+        }} />
+        {/* Bottom penalty area */}
+        <View style={{ position: 'absolute', left: pitchW * 0.19, width: pitchW * 0.62, bottom: 8, height: pitchH * 0.165, borderLeftWidth: 1.5, borderRightWidth: 1.5, borderTopWidth: 1.5, borderColor: LINE }} />
+        {/* Bottom goal area */}
+        <View style={{ position: 'absolute', left: pitchW * 0.37, width: pitchW * 0.26, bottom: 8, height: pitchH * 0.07, borderLeftWidth: 1.5, borderRightWidth: 1.5, borderTopWidth: 1.5, borderColor: LINE }} />
+        {/* Bottom penalty arc */}
+        <View style={{
+          position: 'absolute',
+          width: pitchW * 0.2, height: pitchW * 0.1,
+          borderRadius: pitchW * 0.1,
+          borderWidth: 1.5, borderColor: LINE,
+          left: pitchW * 0.4,
+          bottom: pitchH * 0.165 + 6,
+          borderBottomWidth: 0,
+          overflow: 'hidden',
+        }} />
+        {/* Corner arcs */}
+        {[
+          { top: -8, left: -8 }, { top: -8, right: -8 },
+          { bottom: -8, left: -8 }, { bottom: -8, right: -8 },
+        ].map((pos, i) => (
+          <View key={i} style={{
+            position: 'absolute', ...pos,
+            width: 20, height: 20, borderRadius: 10,
+            borderWidth: 1.5, borderColor: LINE,
+            backgroundColor: 'transparent',
+          }} />
+        ))}
+      </View>
+
+      {/* Players (outside clip so names/badges overflow) */}
+      {Object.entries(rowMap).map(([rowStr, players]) => {
+        const row = Number(rowStr);
+        const yCenter = getY(row);
+        return (players as any[]).map((player, idx) => {
+          const xCenter = getX(idx, players.length);
+          const rating = ratingMap.get(player.id);
+          const pid = Number(player.id);
+          const goalCount = events.filter((e: any) => e.type === 'Goal' && Number(e.player?.id) === pid && e.detail !== 'Missed Penalty').length;
+          const assisted = events.some((e: any) => e.type === 'Goal' && Number(e.assist?.id) === pid);
+          const yellowCard = events.some((e: any) => e.type === 'Card' && e.detail === 'Yellow Card' && Number(e.player?.id) === pid);
+          const redCard = events.some((e: any) => e.type === 'Card' && (e.detail === 'Red Card' || e.detail === 'Yellow Red Card') && Number(e.player?.id) === pid);
+          const subbedOff = events.some((e: any) =>
+            e.type?.toLowerCase() === 'subst' &&
+            (Number(e.assist?.id) === pid || Number(e.player?.id) === pid)
+          );
+          return (
+            <PlayerDot
+              key={player.id ?? `${row}-${idx}`}
+              player={player}
+              x={xCenter - HALF}
+              y={yCenter - HALF}
+              size={BUBBLE}
+              rating={rating}
+              goalCount={goalCount}
+              assisted={assisted}
+              yellowCard={yellowCard}
+              redCard={redCard}
+              subbedOff={subbedOff}
+            />
+          );
+        });
+      })}
+
+      {/* Formation badge */}
+      <View style={{
+        position: 'absolute', bottom: NAME_H + Spacing.sm, left: Spacing.md,
+        backgroundColor: 'rgba(0,0,0,0.65)', borderRadius: Radius.full,
+        paddingHorizontal: Spacing.sm, paddingVertical: 3,
+      }}>
+        <Text style={{ color: Colors.text, fontSize: Typography.xs, fontWeight: '700' }}>
+          {team.formation}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function PlayerDot({
+  player, x, y, size, rating, goalCount, assisted, yellowCard, redCard, subbedOff,
+}: {
+  player: any; x: number; y: number; size: number;
+  rating?: string;
+  goalCount: number; assisted: boolean;
+  yellowCard: boolean; redCard: boolean; subbedOff: boolean;
+}) {
+  const photoUrl = player.id ? `https://media.api-sports.io/football/players/${player.id}.png` : null;
+  const lastName = player.name ? (player.name.split(' ').pop() ?? player.name) : '?';
+  const numBadge = Math.round(size * 0.38);
+  const ratingVal = rating ? parseFloat(rating) : null;
+
+  // Top-right event indicator: priority = goal > card > assist
+  const topRightIcon = goalCount > 0 ? 'goal'
+    : redCard ? 'red'
+    : yellowCard ? 'yellow'
+    : assisted ? 'assist'
+    : null;
+
+  return (
+    <View style={{ position: 'absolute', left: x, top: y, width: size, alignItems: 'center' }}>
+      {/* Photo circle */}
+      <View style={{
+        width: size, height: size, borderRadius: size / 2,
+        backgroundColor: '#d0d0d0',
+        borderWidth: 2.5, borderColor: 'white',
+        overflow: 'hidden',
+        alignItems: 'center', justifyContent: 'center',
+      }}>
+        {photoUrl ? (
+          <Image source={{ uri: photoUrl }} style={{ width: size, height: size }} resizeMode="cover" />
+        ) : (
+          <Text style={{ color: '#333', fontSize: size * 0.28, fontWeight: '700' }}>
+            {player.name?.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+          </Text>
+        )}
+      </View>
+
+      {/* Jersey number badge — top-left */}
+      <View style={{
+        position: 'absolute', top: -numBadge * 0.3, left: -numBadge * 0.3,
+        width: numBadge, height: numBadge, borderRadius: numBadge / 2,
+        backgroundColor: 'white', alignItems: 'center', justifyContent: 'center',
+        shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.25, shadowRadius: 2,
+      }}>
+        <Text style={{ color: '#111', fontSize: numBadge * 0.48, fontWeight: '900', lineHeight: numBadge }}>
+          {player.number}
+        </Text>
+      </View>
+
+      {/* Rating badge — bottom-left */}
+      {ratingVal !== null && (
+        <View style={{
+          position: 'absolute',
+          top: size - numBadge,
+          left: -numBadge * 0.3,
+          paddingHorizontal: 5, height: numBadge, borderRadius: numBadge / 2,
+          backgroundColor: getRatingColor(ratingVal),
+          alignItems: 'center', justifyContent: 'center',
+          minWidth: numBadge,
+        }}>
+          <Text style={{ color: 'white', fontSize: numBadge * 0.46, fontWeight: '800' }}>
+            {rating}
+          </Text>
+        </View>
+      )}
+
+      {/* Substitution badge — bottom-right */}
+      {subbedOff && (
+        <View style={{
+          position: 'absolute',
+          top: size - numBadge,
+          right: -numBadge * 0.3,
+          width: numBadge, height: numBadge, borderRadius: numBadge / 2,
+          backgroundColor: 'white',
+          alignItems: 'center', justifyContent: 'center',
+          shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.25, shadowRadius: 2,
+        }}>
+          <Ionicons name="caret-up" size={numBadge * 0.48} color="#22C55E" style={{ marginBottom: -4 }} />
+          <Ionicons name="caret-down" size={numBadge * 0.48} color="#EF4444" />
+        </View>
+      )}
+
+      {/* Event indicator — top-right (white circle, mirrors number badge) */}
+      {topRightIcon && (
+        <View style={{
+          position: 'absolute', top: -numBadge * 0.3, right: -numBadge * 0.3,
+          width: numBadge, height: numBadge, borderRadius: numBadge / 2,
+          backgroundColor: 'white', alignItems: 'center', justifyContent: 'center',
+          shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.25, shadowRadius: 2,
+        }}>
+          {topRightIcon === 'goal' && (
             <>
-              <Text style={[lineupStyles.sectionLabel, { marginTop: Spacing.md }]}>SUBSTITUTES</Text>
-              {(team.substitutes || []).map((p: any, i: number) => (
-                <View key={p.player?.id ?? i} style={[lineupStyles.playerRow, lineupStyles.subRow]}>
-                  <Text style={[lineupStyles.playerNum, lineupStyles.subNum]}>{p.player?.number}</Text>
-                  <Text style={[lineupStyles.playerName, lineupStyles.subName]}>{p.player?.name}</Text>
-                  <Text style={lineupStyles.playerPos}>{p.player?.pos}</Text>
-                </View>
-              ))}
+              <Text style={{ fontSize: numBadge * 0.55, lineHeight: numBadge }}>⚽</Text>
+              {goalCount > 1 && (
+                <Text style={{
+                  position: 'absolute', bottom: -3, right: -4,
+                  color: 'white', fontSize: 7, fontWeight: '900',
+                  backgroundColor: '#111', borderRadius: 4, paddingHorizontal: 2,
+                }}>x{goalCount}</Text>
+              )}
             </>
           )}
+          {topRightIcon === 'yellow' && (
+            <View style={{ width: numBadge * 0.45, height: numBadge * 0.6, borderRadius: 2, backgroundColor: '#F59E0B' }} />
+          )}
+          {topRightIcon === 'red' && (
+            <View style={{ width: numBadge * 0.45, height: numBadge * 0.6, borderRadius: 2, backgroundColor: '#EF4444' }} />
+          )}
+          {topRightIcon === 'assist' && (
+            <Text style={{ color: '#22C55E', fontSize: numBadge * 0.52, fontWeight: '900', lineHeight: numBadge }}>A</Text>
+          )}
         </View>
-      ))}
+      )}
+
+      {/* Name */}
+      <Text
+        numberOfLines={1}
+        style={{
+          color: 'white', fontSize: 10, fontWeight: '700',
+          marginTop: 3, textAlign: 'center', width: size + 24,
+          textShadowColor: 'rgba(0,0,0,0.95)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
+        }}
+      >
+        {lastName}
+      </Text>
     </View>
   );
 }
 
 const lineupStyles = StyleSheet.create({
   container: { gap: Spacing.md },
-  teamSection: {
+  teamTabs: {
+    flexDirection: 'row',
+    backgroundColor: Colors.card,
+    borderRadius: Radius.full,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  teamTab: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+  },
+  teamTabActive: { backgroundColor: Colors.primary },
+  teamTabText: { color: Colors.textMuted, fontSize: Typography.sm, fontWeight: '600' },
+  teamTabTextActive: { color: Colors.textInverse, fontWeight: '700' },
+  subsSection: {
     backgroundColor: Colors.card,
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Colors.border,
-    padding: Spacing.lg,
+    padding: Spacing.md,
   },
-  teamHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  teamLogo: { width: scale(24), height: scale(24), borderRadius: 4 },
-  teamName: { flex: 1, color: Colors.text, fontSize: Typography.base, fontWeight: '700' },
-  formation: {
-    color: Colors.primary,
-    fontSize: Typography.xs,
-    fontWeight: '700',
-    backgroundColor: Colors.primaryDim,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: Radius.full,
-  },
-  sectionLabel: {
+  subsTitle: {
     color: Colors.textMuted,
     fontSize: Typography.xs,
     fontWeight: '700',
     letterSpacing: 0.8,
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
-  playerRow: {
+  subItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 5,
@@ -625,24 +981,11 @@ const lineupStyles = StyleSheet.create({
     borderBottomColor: Colors.border,
     gap: Spacing.sm,
   },
-  subRow: { opacity: 0.7 },
-  playerNum: {
-    width: scale(24),
-    color: Colors.primary,
-    fontSize: Typography.xs,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  subNum: { color: Colors.textMuted },
-  playerName: { flex: 1, color: Colors.text, fontSize: Typography.sm, fontWeight: '600' },
-  subName: { color: Colors.textSecondary },
-  playerPos: {
-    color: Colors.textMuted,
-    fontSize: Typography.xs,
-    fontWeight: '600',
-    width: scale(28),
-    textAlign: 'right',
-  },
+  subNum: { width: scale(22), color: Colors.textMuted, fontSize: Typography.xs, fontWeight: '700', textAlign: 'center' },
+  subName: { flex: 1, color: Colors.textSecondary, fontSize: Typography.xs, fontWeight: '600' },
+  subRating: { borderRadius: Radius.full, paddingHorizontal: 5, paddingVertical: 1 },
+  subRatingText: { color: 'white', fontSize: 10, fontWeight: '800' },
+  subPos: { color: Colors.textMuted, fontSize: Typography.xs, fontWeight: '600', width: scale(22), textAlign: 'right' },
 });
 
 // ── Events Tab ────────────────────────────────────────────────────────────────
@@ -857,20 +1200,61 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     padding: Spacing.xl,
     marginBottom: Spacing.md,
+    alignItems: 'center',
     ...Shadows.card,
   },
-  heroTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
+  heroTitle: {
+    fontSize: Typography.lg,
+    fontWeight: '800',
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: 4,
   },
-  heroStage: {
+  heroSubtitle: {
     fontSize: Typography.xs,
     color: Colors.textMuted,
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  teamsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: Spacing.md,
+  },
+  teamBlock: {
+    flex: 1,
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  flag: {
+    width: scale(80),
+    height: scale(80),
+    borderRadius: scale(40),
+    overflow: 'hidden',
+  },
+  teamName: {
+    fontSize: Typography.sm,
     fontWeight: '700',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    color: Colors.text,
+    textAlign: 'center',
+  },
+  scoreBlock: {
+    paddingHorizontal: Spacing.md,
+    alignItems: 'center',
+    gap: 4,
+  },
+  endedBadge: {
+    backgroundColor: Colors.cardElevated,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 4,
+  },
+  endedText: {
+    color: Colors.textSecondary,
+    fontSize: Typography.xs,
+    fontWeight: '700',
   },
   liveBadge: {
     flexDirection: 'row',
@@ -883,57 +1267,28 @@ const styles = StyleSheet.create({
   },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: Colors.live },
   liveText: { color: Colors.live, fontSize: Typography.xs, fontWeight: '800' },
-  ftBadge: {
-    fontSize: Typography.xs,
-    color: Colors.textMuted,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-  },
-
-  teamsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.lg,
-  },
-  teamBlock: {
-    flex: 1,
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  flag: {
-    width: scale(72),
-    height: scale(52),
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  teamName: {
-    fontSize: Typography.sm,
-    fontWeight: '700',
-    color: Colors.text,
-    textAlign: 'center',
-  },
-  scoreBlock: {
-    paddingHorizontal: Spacing.lg,
-    alignItems: 'center',
-  },
   scoreText: {
     fontSize: Typography.xxl,
     fontWeight: '900',
     color: Colors.text,
   },
   scoreLive: { color: Colors.live },
+  scoreDateText: {
+    fontSize: Typography.xs,
+    fontWeight: '700',
+    color: Colors.textMuted,
+  },
   vsText: {
     fontSize: Typography.xl,
     fontWeight: '900',
     color: Colors.textMuted,
   },
-
-  metaSection: { gap: Spacing.xs },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: Spacing.xs,
+    marginTop: 4,
   },
   metaText: {
     color: Colors.textSecondary,

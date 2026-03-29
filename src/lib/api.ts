@@ -291,23 +291,42 @@ export async function fetchQualificationFixtures() {
 
     return fixtures.map((f: any) => {
       const statusShort = f.fixture?.status?.short || 'NS';
-      let status: 'scheduled' | 'live' | 'completed' | 'tbd' = 'scheduled';
+      let status: 'scheduled' | 'live' | 'completed' = 'scheduled';
       if (['1H', 'HT', '2H', 'ET', 'P', 'BT', 'LIVE'].includes(statusShort)) status = 'live';
       else if (['FT', 'AET', 'PEN'].includes(statusShort)) status = 'completed';
 
+      const homeGoals = f.goals?.home ?? null;
+      const awayGoals = f.goals?.away ?? null;
+      const penHome   = f.score?.penalty?.home ?? null;
+
+      // Build human-readable score string
+      let score: string | undefined;
+      if (status === 'completed' && homeGoals !== null && awayGoals !== null) {
+        score = penHome !== null
+          ? `${homeGoals}-${awayGoals} (pen)`
+          : `${homeGoals}-${awayGoals}`;
+      }
+
+      const homeWinner = f.teams?.home?.winner === true;
+      const awayWinner = f.teams?.away?.winner === true;
+
       return {
-        id: f.fixture?.id,
-        homeTeam: f.teams?.home?.name || 'TBD',
-        awayTeam: f.teams?.away?.name || 'TBD',
-        homeFlag: f.teams?.home?.logo || '',
-        awayFlag: f.teams?.away?.logo || '',
-        homeScore: f.goals?.home ?? null,
-        awayScore: f.goals?.away ?? null,
-        date: f.fixture?.date || '',
-        venue: f.fixture?.venue?.name || f.fixture?.venue?.city || '',
+        id:          f.fixture?.id as number,
+        leagueId:    f.league?.id as number,        // 32=UEFA, 37=Intercontinental
+        round:       (f.league?.round || '') as string,
+        homeTeamId:  f.teams?.home?.id as number,
+        awayTeamId:  f.teams?.away?.id as number,
+        homeTeam:    f.teams?.home?.name || 'TBD',
+        awayTeam:    f.teams?.away?.name || 'TBD',
+        homeLogo:    f.teams?.home?.logo || '',
+        awayLogo:    f.teams?.away?.logo || '',
+        homeScore:   homeGoals as number | null,
+        awayScore:   awayGoals as number | null,
+        date:        f.fixture?.date || '',
+        venue:       f.fixture?.venue?.name || f.fixture?.venue?.city || '',
         status,
-        round: (f.league?.round || '').replace(/_/g, ' '),
-        stage: f.league?.name || 'WC Qualifier',
+        score,                                       // e.g. '2-0', '1-1 (pen)'
+        winner:      homeWinner ? 'home' : awayWinner ? 'away' : null,
       };
     });
   } catch {
@@ -315,11 +334,43 @@ export async function fetchQualificationFixtures() {
   }
 }
 
-// H2H: POST via edge function
-export async function fetchH2H(homeTeamId: string, awayTeamId: string) {
+export type QualFixture = Awaited<ReturnType<typeof fetchQualificationFixtures>>[number];
+
+// Match Statistics: GET via football-api
+export async function fetchMatchStatistics(fixtureId: string) {
+  try {
+    const data = await callFootballApi('statistics', { fixtureId });
+    return (data?.response || []) as any[];
+  } catch {
+    return [];
+  }
+}
+
+// Match Events: GET via football-api
+export async function fetchMatchEvents(fixtureId: string) {
+  try {
+    const data = await callFootballApi('events', { fixtureId });
+    return (data?.response || []) as any[];
+  } catch {
+    return [];
+  }
+}
+
+// Match Lineups: GET via football-api
+export async function fetchMatchLineups(fixtureId: string) {
+  try {
+    const data = await callFootballApi('lineups', { fixtureId });
+    return (data?.response || []) as any[];
+  } catch {
+    return [];
+  }
+}
+
+// H2H: POST via edge function (sends team names for API-Football lookup)
+export async function fetchH2H(homeTeam: string, awayTeam: string) {
   try {
     const { data } = await supabase.functions.invoke('h2h-history', {
-      body: { home_team_id: homeTeamId, away_team_id: awayTeamId },
+      body: { homeTeam, awayTeam },
     });
     return data;
   } catch {

@@ -1,6 +1,9 @@
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { useMemo } from 'react';
+import { View, Text, StyleSheet, Image, ActivityIndicator } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import { scale } from '@/utils/responsive';
+import { fetchQualificationFixtures, type QualFixture } from '@/lib/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -18,120 +21,106 @@ interface PlayoffMatch {
   venue?: string;
   home: PlayoffTeam;
   away: PlayoffTeam;
-  homeWin: number;
-  draw: number;
-  awayWin: number;
+  score?: string;
+  winner?: 'home' | 'away';
 }
 
-// ── Static playoff data ───────────────────────────────────────────────────────
+// ── Static team metadata (form + flag + path grouping) ────────────────────────
+// Only this needs updating when teams change. Scores/results come from the API.
 
-const UEFA_PATHS: Array<{ path: string; matches: PlayoffMatch[]; finalDate: string }> = [
-  {
-    path: 'A',
-    finalDate: 'Mar 31',
-    matches: [
-      {
-        date: '2026-03-26T20:45:00',
-        home: { name: 'Wales',            code: 'WAL', flag: 'https://flagcdn.com/w40/gb-wls.png', form: ['W','D','L','W','D'] },
-        away: { name: 'Bosnia & Herz.',   code: 'BIH', flag: 'https://flagcdn.com/w40/ba.png',     form: ['W','L','D','W','L'] },
-        homeWin: 81, draw: 9,  awayWin: 10,
-      },
-      {
-        date: '2026-03-26T20:45:00',
-        home: { name: 'Italy',            code: 'ITA', flag: 'https://flagcdn.com/w40/it.png',     form: ['W','W','D','W','W'] },
-        away: { name: 'N. Ireland',       code: 'NIR', flag: 'https://flagcdn.com/w40/gb-nir.png', form: ['L','L','D','L','L'] },
-        homeWin: 85, draw: 5,  awayWin: 10,
-      },
-    ],
-  },
-  {
-    path: 'B',
-    finalDate: 'Mar 31',
-    matches: [
-      {
-        date: '2026-03-26T20:45:00',
-        home: { name: 'Poland',           code: 'POL', flag: 'https://flagcdn.com/w40/pl.png',     form: ['W','W','D','L','W'] },
-        away: { name: 'Albania',          code: 'ALB', flag: 'https://flagcdn.com/w40/al.png',     form: ['L','W','D','L','W'] },
-        homeWin: 69, draw: 15, awayWin: 16,
-      },
-      {
-        date: '2026-03-27T20:45:00',
-        home: { name: 'Ukraine',          code: 'UKR', flag: 'https://flagcdn.com/w40/ua.png',     form: ['W','W','W','D','W'] },
-        away: { name: 'Sweden',           code: 'SWE', flag: 'https://flagcdn.com/w40/se.png',     form: ['W','L','W','D','L'] },
-        homeWin: 72, draw: 14, awayWin: 14,
-      },
-    ],
-  },
-  {
-    path: 'C',
-    finalDate: 'Mar 31',
-    matches: [
-      {
-        date: '2026-03-26T20:45:00',
-        home: { name: 'Slovakia',         code: 'SVK', flag: 'https://flagcdn.com/w40/sk.png',     form: ['W','D','W','W','L'] },
-        away: { name: 'Kosovo',           code: 'KVX', flag: 'https://flagcdn.com/w40/xk.png',     form: ['W','L','W','D','L'] },
-        homeWin: 83, draw: 7,  awayWin: 10,
-      },
-      {
-        date: '2026-03-27T20:45:00',
-        home: { name: 'Türkiye',          code: 'TUR', flag: 'https://flagcdn.com/w40/tr.png',     form: ['W','W','W','D','W'] },
-        away: { name: 'Romania',          code: 'ROU', flag: 'https://flagcdn.com/w40/ro.png',     form: ['D','W','L','W','D'] },
-        homeWin: 52, draw: 22, awayWin: 26,
-      },
-    ],
-  },
-  {
-    path: 'D',
-    finalDate: 'Mar 31',
-    matches: [
-      {
-        date: '2026-03-26T20:45:00',
-        home: { name: 'Czech Republic',   code: 'CZE', flag: 'https://flagcdn.com/w40/cz.png',     form: ['D','W','W','L','W'] },
-        away: { name: 'Rep. Ireland',     code: 'IRL', flag: 'https://flagcdn.com/w40/ie.png',     form: ['W','D','L','W','D'] },
-        homeWin: 64, draw: 22, awayWin: 14,
-      },
-      {
-        date: '2026-03-27T20:45:00',
-        home: { name: 'Denmark',          code: 'DEN', flag: 'https://flagcdn.com/w40/dk.png',     form: ['W','W','W','W','D'] },
-        away: { name: 'North Macedonia',  code: 'MKD', flag: 'https://flagcdn.com/w40/mk.png',     form: ['L','D','L','W','L'] },
-        homeWin: 81, draw: 9,  awayWin: 10,
-      },
-    ],
-  },
-];
+const TEAM_META: Record<number, {
+  code: string; flag: string; form: FormResult[];
+  path?: string; pathway?: number;
+}> = {
+  // Path A
+  767:  { code: 'WAL', flag: 'https://flagcdn.com/w40/gb-wls.png', form: ['W','D','L','W','D'], path: 'A' },
+  1113: { code: 'BIH', flag: 'https://flagcdn.com/w40/ba.png',     form: ['W','L','D','W','L'], path: 'A' },
+  768:  { code: 'ITA', flag: 'https://flagcdn.com/w40/it.png',     form: ['W','W','D','W','W'], path: 'A' },
+  771:  { code: 'NIR', flag: 'https://flagcdn.com/w40/gb-nir.png', form: ['L','L','D','L','L'], path: 'A' },
+  // Path B
+  24:   { code: 'POL', flag: 'https://flagcdn.com/w40/pl.png',     form: ['W','W','D','L','W'], path: 'B' },
+  778:  { code: 'ALB', flag: 'https://flagcdn.com/w40/al.png',     form: ['L','W','D','L','W'], path: 'B' },
+  772:  { code: 'UKR', flag: 'https://flagcdn.com/w40/ua.png',     form: ['W','W','W','D','W'], path: 'B' },
+  5:    { code: 'SWE', flag: 'https://flagcdn.com/w40/se.png',     form: ['W','L','W','D','L'], path: 'B' },
+  // Path C
+  773:  { code: 'SVK', flag: 'https://flagcdn.com/w40/sk.png',     form: ['W','D','W','W','L'], path: 'C' },
+  1111: { code: 'KVX', flag: 'https://flagcdn.com/w40/xk.png',     form: ['W','L','W','D','L'], path: 'C' },
+  777:  { code: 'TUR', flag: 'https://flagcdn.com/w40/tr.png',     form: ['W','W','W','D','W'], path: 'C' },
+  774:  { code: 'ROU', flag: 'https://flagcdn.com/w40/ro.png',     form: ['D','W','L','W','D'], path: 'C' },
+  // Path D
+  770:  { code: 'CZE', flag: 'https://flagcdn.com/w40/cz.png',     form: ['D','W','W','L','W'], path: 'D' },
+  776:  { code: 'IRL', flag: 'https://flagcdn.com/w40/ie.png',     form: ['W','D','L','W','D'], path: 'D' },
+  21:   { code: 'DEN', flag: 'https://flagcdn.com/w40/dk.png',     form: ['W','W','W','W','D'], path: 'D' },
+  1105: { code: 'MKD', flag: 'https://flagcdn.com/w40/mk.png',     form: ['L','D','L','W','L'], path: 'D' },
+  // Intercontinental Pathway 1
+  5163: { code: 'NCL', flag: 'https://flagcdn.com/w40/nc.png',     form: ['W','W','L','W','D'], pathway: 1 },
+  2385: { code: 'JAM', flag: 'https://flagcdn.com/w40/jm.png',     form: ['D','W','L','D','W'], pathway: 1 },
+  1508: { code: 'COD', flag: 'https://flagcdn.com/w40/cd.png',     form: ['W','W','W','L','W'], pathway: 1 }, // DR Congo
+  // Intercontinental Pathway 2
+  2381: { code: 'BOL', flag: 'https://flagcdn.com/w40/bo.png',     form: ['L','D','L','W','L'], pathway: 2 },
+  8171: { code: 'SUR', flag: 'https://flagcdn.com/w40/sr.png',     form: ['W','D','L','W','D'], pathway: 2 },
+  1567: { code: 'IRQ', flag: 'https://flagcdn.com/w40/iq.png',     form: ['W','W','D','W','W'], pathway: 2 }, // Iraq
+};
 
-const INTER_PATHS: Array<{ pathway: number; matches: PlayoffMatch[]; finalDate: string }> = [
-  {
-    pathway: 1,
-    finalDate: 'Mar 31',
-    matches: [
-      {
-        date: '2026-03-26T18:00:00',
-        venue: 'Estadio BBVA, Monterrey',
-        home: { name: 'New Caledonia',    code: 'NCL', flag: 'https://flagcdn.com/w40/nc.png',     form: ['W','W','L','W','D'] },
-        away: { name: 'Jamaica',          code: 'JAM', flag: 'https://flagcdn.com/w40/jm.png',     form: ['D','W','L','D','W'] },
-        homeWin: 15, draw: 22, awayWin: 63,
-      },
-    ],
-  },
-  {
-    pathway: 2,
-    finalDate: 'Mar 31',
-    matches: [
-      {
-        date: '2026-03-26T21:00:00',
-        venue: 'Estadio Akron, Guadalajara',
-        home: { name: 'Bolivia',          code: 'BOL', flag: 'https://flagcdn.com/w40/bo.png',     form: ['L','D','L','W','L'] },
-        away: { name: 'Suriname',         code: 'SUR', flag: 'https://flagcdn.com/w40/sr.png',     form: ['W','D','L','W','D'] },
-        homeWin: 82, draw: 8,  awayWin: 10,
-      },
-    ],
-  },
-];
+const UEFA_PATH_ORDER = ['A', 'B', 'C', 'D'];
+
+function buildMatch(f: QualFixture): PlayoffMatch {
+  const hm = TEAM_META[f.homeTeamId] ?? { code: '?', flag: '', form: [] };
+  const am = TEAM_META[f.awayTeamId] ?? { code: '?', flag: '', form: [] };
+  return {
+    date:   f.date,
+    venue:  f.venue || undefined,
+    home:   { name: f.homeTeam, code: hm.code, flag: hm.flag || f.homeLogo, form: hm.form },
+    away:   { name: f.awayTeam, code: am.code, flag: am.flag || f.awayLogo, form: am.form },
+    score:  f.score,
+    winner: f.winner as 'home' | 'away' | undefined,
+  };
+}
 
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function QualifiersView() {
+  const { data: fixtures = [], isLoading } = useQuery({
+    queryKey: ['qualificationFixtures'],
+    queryFn: fetchQualificationFixtures,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Group fixtures by UEFA path (A-D) and Intercontinental pathway (1-2)
+  const { pathGroups, interGroups } = useMemo(() => {
+    const pathGroups: Record<string, { semis: QualFixture[]; final?: QualFixture }> = {
+      A: { semis: [] }, B: { semis: [] }, C: { semis: [] }, D: { semis: [] },
+    };
+    const interGroups: Record<number, { semis: QualFixture[]; final?: QualFixture }> = {
+      1: { semis: [] }, 2: { semis: [] },
+    };
+
+    for (const f of fixtures) {
+      const hm = TEAM_META[f.homeTeamId];
+      const am = TEAM_META[f.awayTeamId];
+      const path    = hm?.path    ?? am?.path;
+      const pathway = hm?.pathway ?? am?.pathway;
+
+      if (path && pathGroups[path]) {
+        if (f.round === 'Semi-finals') pathGroups[path].semis.push(f);
+        else if (f.round === 'Final')  pathGroups[path].final = f;
+      } else if (pathway && interGroups[pathway]) {
+        if (f.round === 'Semi-finals') interGroups[pathway].semis.push(f);
+        else if (f.round === 'Final')  interGroups[pathway].final = f;
+      }
+    }
+    return { pathGroups, interGroups };
+  }, [fixtures]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="small" color={Colors.primary} />
+        <Text style={styles.loadingText}>Loading playoff data…</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
 
@@ -175,33 +164,51 @@ export function QualifiersView() {
         <Text style={styles.sectionSubtitle}>16 teams competing for 4 World Cup spots</Text>
       </View>
 
-      {UEFA_PATHS.map((p) => (
-        <View key={p.path} style={styles.pathCard}>
-          <View style={styles.pathHeaderRow}>
-            <Text style={styles.pathLabel}>Path {p.path}</Text>
-            <View style={styles.sfDivider}>
-              <View style={styles.sfLine} />
-              <Text style={styles.sfText}>Semi-final</Text>
-              <View style={styles.sfLine} />
+      {UEFA_PATH_ORDER.map((path) => {
+        const group = pathGroups[path];
+        const finalF = group.final;
+        const finalMatchup = finalF
+          ? `${finalF.homeTeam} vs ${finalF.awayTeam}`
+          : 'TBD vs TBD';
+        const finalVenue = finalF?.venue || '';
+        const finalDate  = finalF ? new Date(finalF.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Mar 31';
+        const finalScore = finalF?.score;
+
+        return (
+          <View key={path} style={styles.pathCard}>
+            <View style={styles.pathHeaderRow}>
+              <Text style={styles.pathLabel}>Path {path}</Text>
+              <View style={styles.sfDivider}>
+                <View style={styles.sfLine} />
+                <Text style={styles.sfText}>Semi-final</Text>
+                <View style={styles.sfLine} />
+              </View>
+            </View>
+
+            {group.semis.map((f, idx) => (
+              <MatchCard key={f.id} match={buildMatch(f)} isLast={idx === group.semis.length - 1} />
+            ))}
+
+            <View style={styles.finalRow}>
+              <Text style={styles.finalArrow}>→</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.finalLabel}>
+                  Final · {finalDate}
+                  {finalScore ? `  ${finalScore}` : ''}
+                </Text>
+                <Text style={styles.finalDate}>
+                  {finalMatchup}{finalVenue ? ` · ${finalVenue}` : ''}
+                </Text>
+              </View>
+              <View style={finalScore ? styles.completedBadge : styles.confirmedBadge}>
+                <Text style={finalScore ? styles.completedText : styles.confirmedText}>
+                  {finalScore ? 'FT' : 'Mar 31'}
+                </Text>
+              </View>
             </View>
           </View>
-
-          {p.matches.map((match, idx) => (
-            <MatchCard key={idx} match={match} isLast={idx === p.matches.length - 1} />
-          ))}
-
-          <View style={styles.finalRow}>
-            <Text style={styles.finalArrow}>→</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.finalLabel}>Final</Text>
-              <Text style={styles.finalDate}>{p.finalDate} · Winner vs Winner</Text>
-            </View>
-            <View style={styles.tbdBadge}>
-              <Text style={styles.tbdText}>TBD</Text>
-            </View>
-          </View>
-        </View>
-      ))}
+        );
+      })}
 
       {/* ── Intercontinental Playoffs ────────────────────────────────────────── */}
       <View style={[styles.sectionHeaderCard, styles.sectionHeaderCardInter]}>
@@ -214,33 +221,51 @@ export function QualifiersView() {
         <Text style={styles.sectionSubtitle}>Hosted in Mexico (Monterrey & Guadalajara)</Text>
       </View>
 
-      {INTER_PATHS.map((p) => (
-        <View key={p.pathway} style={styles.pathCard}>
-          <View style={styles.pathHeaderRow}>
-            <Text style={styles.pathLabel}>Pathway {p.pathway}</Text>
-            <View style={styles.sfDivider}>
-              <View style={styles.sfLine} />
-              <Text style={styles.sfText}>Semi-final</Text>
-              <View style={styles.sfLine} />
+      {[1, 2].map((pathway) => {
+        const group = interGroups[pathway];
+        const finalF = group.final;
+        const finalMatchup = finalF
+          ? `${finalF.homeTeam} vs ${finalF.awayTeam}`
+          : 'TBD vs TBD';
+        const finalVenue = finalF?.venue || '';
+        const finalDate  = finalF ? new Date(finalF.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Mar 31';
+        const finalScore = finalF?.score;
+
+        return (
+          <View key={pathway} style={styles.pathCard}>
+            <View style={styles.pathHeaderRow}>
+              <Text style={styles.pathLabel}>Pathway {pathway}</Text>
+              <View style={styles.sfDivider}>
+                <View style={styles.sfLine} />
+                <Text style={styles.sfText}>Semi-final</Text>
+                <View style={styles.sfLine} />
+              </View>
+            </View>
+
+            {group.semis.map((f) => (
+              <MatchCard key={f.id} match={buildMatch(f)} isLast={true} />
+            ))}
+
+            <View style={styles.finalRow}>
+              <Text style={styles.finalArrow}>→</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.finalLabel}>
+                  Final · {finalDate}
+                  {finalScore ? `  ${finalScore}` : ''}
+                </Text>
+                <Text style={styles.finalDate}>
+                  {finalMatchup}{finalVenue ? ` · ${finalVenue}` : ''}
+                </Text>
+              </View>
+              <View style={finalScore ? styles.completedBadge : styles.confirmedBadge}>
+                <Text style={finalScore ? styles.completedText : styles.confirmedText}>
+                  {finalScore ? 'FT' : 'Mar 31'}
+                </Text>
+              </View>
             </View>
           </View>
-
-          {p.matches.map((match, idx) => (
-            <MatchCard key={idx} match={match} isLast={true} />
-          ))}
-
-          <View style={styles.finalRow}>
-            <Text style={styles.finalArrow}>→</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.finalLabel}>Final</Text>
-              <Text style={styles.finalDate}>{p.finalDate} · Winner qualifies</Text>
-            </View>
-            <View style={styles.tbdBadge}>
-              <Text style={styles.tbdText}>TBD</Text>
-            </View>
-          </View>
-        </View>
-      ))}
+        );
+      })}
 
     </View>
   );
@@ -280,7 +305,7 @@ function MatchCard({ match, isLast }: { match: PlayoffMatch; isLast: boolean }) 
       <View style={styles.teamRow}>
         <View style={styles.teamLeft}>
           <Image source={{ uri: match.home.flag }} style={styles.teamFlag} resizeMode="contain" />
-          <Text style={styles.teamName} numberOfLines={1}>{match.home.name}</Text>
+          <Text style={[styles.teamName, match.winner === 'home' && styles.teamNameWinner]} numberOfLines={1}>{match.home.name}</Text>
         </View>
         <View style={styles.teamRight}>
           <Text style={styles.teamCode}>{match.home.code}</Text>
@@ -295,7 +320,7 @@ function MatchCard({ match, isLast }: { match: PlayoffMatch; isLast: boolean }) 
       <View style={styles.teamRow}>
         <View style={styles.teamLeft}>
           <Image source={{ uri: match.away.flag }} style={styles.teamFlag} resizeMode="contain" />
-          <Text style={styles.teamName} numberOfLines={1}>{match.away.name}</Text>
+          <Text style={[styles.teamName, match.winner === 'away' && styles.teamNameWinner]} numberOfLines={1}>{match.away.name}</Text>
         </View>
         <View style={styles.teamRight}>
           <Text style={styles.teamCode}>{match.away.code}</Text>
@@ -303,20 +328,13 @@ function MatchCard({ match, isLast }: { match: PlayoffMatch; isLast: boolean }) 
         </View>
       </View>
 
-      {/* Win probability */}
-      <View style={styles.winSection}>
-        <Text style={styles.winTitle}>WIN PROBABILITY</Text>
-        <View style={styles.winBarOuter}>
-          <View style={{ flex: match.homeWin, backgroundColor: Colors.primary }} />
-          <View style={{ flex: match.draw,    backgroundColor: Colors.borderLight }} />
-          <View style={{ flex: match.awayWin, backgroundColor: Colors.accent }} />
+      {/* Result */}
+      {match.score ? (
+        <View style={styles.resultSection}>
+          <Text style={styles.winTitle}>RESULT</Text>
+          <Text style={styles.resultScore}>{match.score}</Text>
         </View>
-        <View style={styles.winLabels}>
-          <Text style={[styles.winLabelText, { color: Colors.primary }]}>Home {match.homeWin}%</Text>
-          <Text style={[styles.winLabelText, { color: Colors.textMuted }]}>Draw {match.draw}%</Text>
-          <Text style={[styles.winLabelText, { color: Colors.accent }]}>Away {match.awayWin}%</Text>
-        </View>
-      </View>
+      ) : null}
     </View>
   );
 }
@@ -326,6 +344,15 @@ function MatchCard({ match, isLast }: { match: PlayoffMatch; isLast: boolean }) 
 const styles = StyleSheet.create({
   container: {
     gap: Spacing.md,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xl,
+    gap: Spacing.sm,
+  },
+  loadingText: {
+    color: Colors.textMuted,
+    fontSize: Typography.sm,
   },
 
   // ── Header card ──────────────────────────────────────────────────────────────
@@ -548,6 +575,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
   },
+  teamNameWinner: {
+    color: Colors.primary,
+    fontWeight: '800',
+  },
   teamRight: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -581,10 +612,17 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
-  // Win probability
-  winSection: {
+  // Result
+  resultSection: {
     marginTop: Spacing.sm,
     gap: 4,
+  },
+  resultScore: {
+    color: Colors.text,
+    fontSize: Typography.md,
+    fontWeight: '800',
+    textAlign: 'center',
+    letterSpacing: 1,
   },
   winTitle: {
     color: Colors.textMuted,
@@ -592,20 +630,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
-  },
-  winBarOuter: {
-    flexDirection: 'row',
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  winLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  winLabelText: {
-    fontSize: 9,
-    fontWeight: '600',
   },
 
   // Final row
@@ -634,7 +658,20 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 1,
   },
-  tbdBadge: {
+  confirmedBadge: {
+    backgroundColor: Colors.accentDim,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: Colors.accent,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  confirmedText: {
+    color: Colors.accent,
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  completedBadge: {
     backgroundColor: Colors.primaryDim,
     borderRadius: Radius.full,
     borderWidth: 1,
@@ -642,7 +679,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  tbdText: {
+  completedText: {
     color: Colors.primary,
     fontSize: 9,
     fontWeight: '800',

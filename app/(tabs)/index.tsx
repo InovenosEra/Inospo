@@ -10,8 +10,9 @@ import {
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { fetchMatches } from '@/lib/api';
+import { fetchMatches, fetchQualificationFixtures, type QualFixture } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { MatchCard } from '@/components/MatchCard';
 import { AuthModal } from '@/components/AuthModal';
@@ -20,37 +21,41 @@ import { Colors, Spacing, Typography, Radius, Shadows } from '@/constants/theme'
 import { scale } from '@/utils/responsive';
 import type { Match } from '@/types';
 
-// ── Static qualification playoff fixtures ─────────────────────────────────────
+// ── Team flag map (API team ID → flagcdn URL) ─────────────────────────────────
+const TEAM_FLAGS: Record<number, string> = {
+  767: 'https://flagcdn.com/w40/gb-wls.png', 1113: 'https://flagcdn.com/w40/ba.png',
+  768: 'https://flagcdn.com/w40/it.png',     771:  'https://flagcdn.com/w40/gb-nir.png',
+  24:  'https://flagcdn.com/w40/pl.png',     778:  'https://flagcdn.com/w40/al.png',
+  772: 'https://flagcdn.com/w40/ua.png',     5:    'https://flagcdn.com/w40/se.png',
+  773: 'https://flagcdn.com/w40/sk.png',     1111: 'https://flagcdn.com/w40/xk.png',
+  777: 'https://flagcdn.com/w40/tr.png',     774:  'https://flagcdn.com/w40/ro.png',
+  770: 'https://flagcdn.com/w40/cz.png',     776:  'https://flagcdn.com/w40/ie.png',
+  21:  'https://flagcdn.com/w40/dk.png',     1105: 'https://flagcdn.com/w40/mk.png',
+  5163:'https://flagcdn.com/w40/nc.png',     2385: 'https://flagcdn.com/w40/jm.png',
+  1508:'https://flagcdn.com/w40/cd.png',     2381: 'https://flagcdn.com/w40/bo.png',
+  8171:'https://flagcdn.com/w40/sr.png',     1567: 'https://flagcdn.com/w40/iq.png',
+};
 
-interface PlayoffFixture {
-  id: string;
-  homeTeam: string;
-  awayTeam: string;
-  homeFlag: string;
-  awayFlag: string;
-  date: string;
-  venue: string;
-  stage: string;
-  round: string;
+// Map team ID → path label for round display
+const TEAM_PATH: Record<number, string> = {
+  767: 'A', 1113: 'A', 768: 'A', 771: 'A',
+  24:  'B', 778:  'B', 772: 'B', 5:   'B',
+  773: 'C', 1111: 'C', 777: 'C', 774: 'C',
+  770: 'D', 776:  'D', 21:  'D', 1105:'D',
+};
+const TEAM_PATHWAY: Record<number, number> = {
+  5163: 1, 2385: 1, 1508: 1,
+  2381: 2, 8171: 2, 1567: 2,
+};
+
+function buildRoundLabel(f: QualFixture): string {
+  const path    = TEAM_PATH[f.homeTeamId]    ?? TEAM_PATH[f.awayTeamId];
+  const pathway = TEAM_PATHWAY[f.homeTeamId] ?? TEAM_PATHWAY[f.awayTeamId];
+  const round   = f.round === 'Semi-finals' ? 'Semi-final' : 'Final';
+  if (path)    return `Path ${path} · ${round}`;
+  if (pathway) return `Pathway ${pathway} · ${round}`;
+  return round;
 }
-
-const PLAYOFF_FIXTURES: PlayoffFixture[] = [
-  // UEFA Path A
-  { id: 'wal-bih', homeTeam: 'Wales',          awayTeam: 'Bosnia & Herz.', homeFlag: 'https://flagcdn.com/w40/gb-wls.png', awayFlag: 'https://flagcdn.com/w40/ba.png', date: '2026-03-26T20:45:00', venue: 'Cardiff City Stadium', stage: 'UEFA Playoffs',           round: 'Path A · Semi-final' },
-  { id: 'ita-nir', homeTeam: 'Italy',           awayTeam: 'N. Ireland',     homeFlag: 'https://flagcdn.com/w40/it.png',     awayFlag: 'https://flagcdn.com/w40/gb-nir.png', date: '2026-03-26T20:45:00', venue: 'Stadio Olimpico, Rome', stage: 'UEFA Playoffs',      round: 'Path A · Semi-final' },
-  // UEFA Path B
-  { id: 'pol-alb', homeTeam: 'Poland',          awayTeam: 'Albania',        homeFlag: 'https://flagcdn.com/w40/pl.png',     awayFlag: 'https://flagcdn.com/w40/al.png', date: '2026-03-26T20:45:00', venue: 'PGE Narodowy, Warsaw',  stage: 'UEFA Playoffs',          round: 'Path B · Semi-final' },
-  { id: 'ukr-swe', homeTeam: 'Ukraine',         awayTeam: 'Sweden',         homeFlag: 'https://flagcdn.com/w40/ua.png',     awayFlag: 'https://flagcdn.com/w40/se.png', date: '2026-03-27T20:45:00', venue: 'Vasyl Lobanovskyi Stadium', stage: 'UEFA Playoffs',    round: 'Path B · Semi-final' },
-  // UEFA Path C
-  { id: 'svk-kvx', homeTeam: 'Slovakia',        awayTeam: 'Kosovo',         homeFlag: 'https://flagcdn.com/w40/sk.png',     awayFlag: 'https://flagcdn.com/w40/xk.png', date: '2026-03-26T20:45:00', venue: 'Tehelné pole, Bratislava', stage: 'UEFA Playoffs',    round: 'Path C · Semi-final' },
-  { id: 'tur-rou', homeTeam: 'Türkiye',         awayTeam: 'Romania',        homeFlag: 'https://flagcdn.com/w40/tr.png',     awayFlag: 'https://flagcdn.com/w40/ro.png', date: '2026-03-27T20:45:00', venue: 'Atatürk Olimpiyat, Istanbul', stage: 'UEFA Playoffs',  round: 'Path C · Semi-final' },
-  // UEFA Path D
-  { id: 'cze-irl', homeTeam: 'Czech Republic',  awayTeam: 'Rep. Ireland',   homeFlag: 'https://flagcdn.com/w40/cz.png',     awayFlag: 'https://flagcdn.com/w40/ie.png', date: '2026-03-26T20:45:00', venue: 'Letná, Prague',          stage: 'UEFA Playoffs',          round: 'Path D · Semi-final' },
-  { id: 'den-mkd', homeTeam: 'Denmark',         awayTeam: 'N. Macedonia',   homeFlag: 'https://flagcdn.com/w40/dk.png',     awayFlag: 'https://flagcdn.com/w40/mk.png', date: '2026-03-27T20:45:00', venue: 'Parken, Copenhagen',     stage: 'UEFA Playoffs',          round: 'Path D · Semi-final' },
-  // Intercontinental
-  { id: 'ncl-jam', homeTeam: 'New Caledonia',   awayTeam: 'Jamaica',        homeFlag: 'https://flagcdn.com/w40/nc.png',     awayFlag: 'https://flagcdn.com/w40/jm.png', date: '2026-03-26T18:00:00', venue: 'Estadio BBVA, Monterrey',    stage: 'Intercontinental Playoffs', round: 'Pathway 1 · Semi-final' },
-  { id: 'bol-sur', homeTeam: 'Bolivia',         awayTeam: 'Suriname',       homeFlag: 'https://flagcdn.com/w40/bo.png',     awayFlag: 'https://flagcdn.com/w40/sr.png', date: '2026-03-26T21:00:00', venue: 'Estadio Akron, Guadalajara', stage: 'Intercontinental Playoffs', round: 'Pathway 2 · Semi-final' },
-];
 
 export default function MatchesScreen() {
   const insets = useSafeAreaInsets();
@@ -65,6 +70,12 @@ export default function MatchesScreen() {
     queryKey: ['matches'],
     queryFn: fetchMatches,
     refetchInterval: 30 * 1000,
+  });
+
+  const { data: playoffFixtures = [] } = useQuery({
+    queryKey: ['qualificationFixtures'],
+    queryFn: fetchQualificationFixtures,
+    staleTime: 5 * 60 * 1000,
   });
 
 
@@ -138,7 +149,7 @@ export default function MatchesScreen() {
         ref={flatListRef}
         data={displayMatches}
         keyExtractor={(item) => item.id}
-        ListHeaderComponent={!liveOnly ? <PlayoffsSection fixtures={PLAYOFF_FIXTURES} /> : null}
+        ListHeaderComponent={!liveOnly ? <PlayoffsSection fixtures={playoffFixtures} /> : null}
         renderItem={({ item }) => (
           <MatchCard
             match={item}
@@ -188,7 +199,15 @@ export default function MatchesScreen() {
 
 // ── Playoffs section ─────────────────────────────────────────────────────────
 
-function PlayoffsSection({ fixtures }: { fixtures: PlayoffFixture[] }) {
+function PlayoffsSection({ fixtures }: { fixtures: QualFixture[] }) {
+  // Sort: semi-finals first (by date), then finals (by date)
+  const sorted = [...fixtures].sort((a, b) => {
+    const aIsFinal = a.round === 'Final' ? 1 : 0;
+    const bIsFinal = b.round === 'Final' ? 1 : 0;
+    if (aIsFinal !== bIsFinal) return aIsFinal - bIsFinal;
+    return new Date(a.date).getTime() - new Date(b.date).getTime();
+  });
+
   return (
     <View>
       {/* Section label */}
@@ -196,7 +215,7 @@ function PlayoffsSection({ fixtures }: { fixtures: PlayoffFixture[] }) {
         <Text style={pStyles.sectionLabelText}>🚩 QUALIFICATION PLAYOFFS</Text>
       </View>
 
-      {fixtures.map((f) => (
+      {sorted.map((f) => (
         <PlayoffMatchCard key={f.id} fixture={f} />
       ))}
 
@@ -208,32 +227,43 @@ function PlayoffsSection({ fixtures }: { fixtures: PlayoffFixture[] }) {
   );
 }
 
-function PlayoffMatchCard({ fixture }: { fixture: PlayoffFixture }) {
-  const date = new Date(fixture.date);
+function PlayoffMatchCard({ fixture }: { fixture: QualFixture }) {
+  const router = useRouter();
+  const date    = new Date(fixture.date);
   const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
   const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const homeFlag = TEAM_FLAGS[fixture.homeTeamId] || fixture.homeLogo;
+  const awayFlag = TEAM_FLAGS[fixture.awayTeamId] || fixture.awayLogo;
+  const roundLabel = buildRoundLabel(fixture);
 
   return (
-    <View style={pStyles.card}>
+    <TouchableOpacity
+      style={pStyles.card}
+      activeOpacity={0.75}
+      onPress={() => router.push({ pathname: '/match/[id]', params: { id: String(fixture.id), playoff: 'true' } })}
+    >
       {/* Top row: date · time  |  round */}
       <View style={pStyles.topRow}>
         <Text style={pStyles.timeText}>{dateStr} · {timeStr}</Text>
-        <Text style={pStyles.stageText}>{fixture.round.toUpperCase()}</Text>
+        <Text style={pStyles.stageText}>{roundLabel.toUpperCase()}</Text>
       </View>
 
-      {/* Teams row — matches MatchCard layout exactly */}
+      {/* Teams row */}
       <View style={pStyles.teamsRow}>
         <View style={pStyles.teamSide}>
-          <Image source={{ uri: fixture.homeFlag }} style={pStyles.flag} resizeMode="cover" />
+          <Image source={{ uri: homeFlag }} style={pStyles.flag} resizeMode="cover" />
           <Text style={pStyles.teamName} numberOfLines={1}>{fixture.homeTeam}</Text>
         </View>
 
         <View style={pStyles.scoreBox}>
-          <Text style={pStyles.vs}>VS</Text>
+          {fixture.score
+            ? <Text style={pStyles.score}>{fixture.score}</Text>
+            : <Text style={pStyles.vs}>VS</Text>
+          }
         </View>
 
         <View style={pStyles.teamSide}>
-          <Image source={{ uri: fixture.awayFlag }} style={pStyles.flag} resizeMode="cover" />
+          <Image source={{ uri: awayFlag }} style={pStyles.flag} resizeMode="cover" />
           <Text style={pStyles.teamName} numberOfLines={1}>{fixture.awayTeam}</Text>
         </View>
       </View>
@@ -245,7 +275,7 @@ function PlayoffMatchCard({ fixture }: { fixture: PlayoffFixture }) {
           <Text style={pStyles.venueText} numberOfLines={1}>{fixture.venue}</Text>
         </View>
       ) : null}
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -320,6 +350,12 @@ const pStyles = StyleSheet.create({
     fontSize: Typography.lg,
     fontWeight: '900',
     color: Colors.textMuted,
+  },
+  score: {
+    fontSize: Typography.md,
+    fontWeight: '900',
+    color: Colors.text,
+    textAlign: 'center',
   },
   venueRow: {
     flexDirection: 'row',

@@ -12,7 +12,7 @@ export default function RootLayout() {
   const [splashDone, setSplashDone] = useState(false);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.background }}>
       <QueryClientProvider client={queryClient}>
         <StatusBar style="light" backgroundColor={Colors.background} />
         <Stack

@@ -98,10 +98,10 @@ export default function MatchDetailScreen() {
         ? `${match.home_score} – ${match.away_score}`
         : null);
 
-  // ── AI Fact ───────────────────────────────────────────────────────────────
-  const factEnabled = isPlayoff ? !!playoffMatch : !!match;
+  // ── AI Fact (only for scheduled / live matches) ───────────────────────────
+  const factEnabled = !isFinished && (isPlayoff ? !!playoffMatch : !!match) && !!homeTeamName && !!awayTeamName;
   const { data: fact, isFetching: factFetching } = useQuery({
-    queryKey: ['match-fact', id, factKey],
+    queryKey: ['match-fact', homeTeamName, awayTeamName, factKey],
     queryFn: () => {
       if (isPlayoff && playoffMatch) {
         return fetchMatchFact({
@@ -115,7 +115,7 @@ export default function MatchDetailScreen() {
       return fetchMatchFact(match!);
     },
     enabled: factEnabled,
-    staleTime: 10 * 60 * 1000,
+    staleTime: 60 * 60 * 1000, // cache per team pair for 1h
   });
 
   // ── Determine fixtureId for stats/events/lineups (playoff only) ──────────
@@ -268,31 +268,33 @@ export default function MatchDetailScreen() {
           )}
         </View>
 
-        {/* ── Did You Know? ── */}
-        <View style={styles.factCard}>
-          <View style={styles.factHeader}>
-            <Text style={styles.factLabel}>💡 Did You Know?</Text>
-            <TouchableOpacity
-              onPress={() => setFactKey((k) => k + 1)}
-              style={styles.refreshBtn}
-              disabled={factFetching}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name="refresh-outline"
-                size={16}
-                color={factFetching ? Colors.textMuted : Colors.primary}
-              />
-            </TouchableOpacity>
+        {/* ── Did You Know? (hidden for finished matches) ── */}
+        {!isFinished && (
+          <View style={styles.factCard}>
+            <View style={styles.factHeader}>
+              <Text style={styles.factLabel}>💡 Did You Know?</Text>
+              <TouchableOpacity
+                onPress={() => setFactKey((k) => k + 1)}
+                style={styles.refreshBtn}
+                disabled={factFetching}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="refresh-outline"
+                  size={16}
+                  color={factFetching ? Colors.textMuted : Colors.primary}
+                />
+              </TouchableOpacity>
+            </View>
+            {factFetching ? (
+              <ActivityIndicator size="small" color={Colors.primary} style={{ marginTop: 8 }} />
+            ) : fact ? (
+              <Text style={styles.factText}>{fact}</Text>
+            ) : (
+              <Text style={styles.factPlaceholder}>Tap refresh to load a match insight...</Text>
+            )}
           </View>
-          {factFetching ? (
-            <ActivityIndicator size="small" color={Colors.primary} style={{ marginTop: 8 }} />
-          ) : fact ? (
-            <Text style={styles.factText}>{fact}</Text>
-          ) : (
-            <Text style={styles.factPlaceholder}>Tap refresh to load a match insight...</Text>
-          )}
-        </View>
+        )}
 
         {/* ── Tab Bar ── */}
         <View style={styles.tabBar}>

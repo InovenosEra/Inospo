@@ -13,14 +13,12 @@ import { fetchMatches, fetchTeams, fetchTopScorers, fetchTopAssists } from '@/li
 import { GroupStandings } from '@/components/GroupStandings';
 import { KnockoutBracket } from '@/components/KnockoutBracket';
 import { TopScorersList } from '@/components/TopScorersList';
-import { QualifiersView } from '@/components/QualifiersView';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import type { StatsView } from '@/types';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 const VIEWS: Array<{ key: StatsView; icon: IoniconName; iconActive: IoniconName; label: string }> = [
-  { key: 'qualifiers', icon: 'flag-outline',    iconActive: 'flag',    label: 'Qualifiers' },
   { key: 'standings',  icon: 'people-outline',  iconActive: 'people',  label: 'Groups' },
   { key: 'bracket',    icon: 'trophy-outline',  iconActive: 'trophy',  label: 'Knockout' },
   { key: 'scorers',    icon: 'person-outline',  iconActive: 'person',  label: 'Stats' },
@@ -28,7 +26,7 @@ const VIEWS: Array<{ key: StatsView; icon: IoniconName; iconActive: IoniconName;
 
 export default function StatsScreen() {
   const insets = useSafeAreaInsets();
-  const [activeView, setActiveView] = useState<StatsView>('qualifiers');
+  const [activeView, setActiveView] = useState<StatsView>('standings');
   const [refreshing, setRefreshing] = useState(false);
   const queryClient = useQueryClient();
 
@@ -116,7 +114,6 @@ export default function StatsScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
         showsVerticalScrollIndicator={false}
       >
-        {activeView === 'qualifiers' && <QualifiersView />}
         {activeView === 'standings'  && <GroupStandings matches={matches} teams={teams} />}
         {activeView === 'bracket'    && <KnockoutBracket matches={matches} />}
         {activeView === 'scorers'    && (

@@ -82,7 +82,7 @@ export interface UserRole {
 
 export type MatchFilter = 'all' | 'upcoming' | 'live' | 'completed';
 
-export type StatsView = 'qualifiers' | 'standings' | 'bracket' | 'scorers';
+export type StatsView = 'standings' | 'bracket' | 'scorers';
 
 export interface GroupStanding {
   team: Team;

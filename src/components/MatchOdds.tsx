@@ -105,19 +105,21 @@ export function MatchOdds({ homeTeam, awayTeam }: Props) {
   const odds = calculateWinProbability(homeRank, awayRank);
   const favorite = odds.home > odds.away ? 'home' : odds.away > odds.home ? 'away' : 'draw';
 
-  // Live form via team-form edge function (no friendlies). Cached 12h since
-  // results don't change between renders within a session.
-  const STALE = 12 * 60 * 60 * 1000;
+  // Live form via team-form edge function (no friendlies). Cached 1h with
+  // up to 2 retries so a transient failure doesn't permanently hide the chips.
+  const STALE = 60 * 60 * 1000;
   const { data: homeForm = [] } = useQuery({
     queryKey: ['team-form', homeTeam],
     queryFn: () => fetchTeamForm(homeTeam),
     staleTime: STALE,
+    retry: 2,
     enabled: !!homeTeam,
   });
   const { data: awayForm = [] } = useQuery({
     queryKey: ['team-form', awayTeam],
     queryFn: () => fetchTeamForm(awayTeam),
     staleTime: STALE,
+    retry: 2,
     enabled: !!awayTeam,
   });
   const hasHomeForm = homeForm.length > 0;

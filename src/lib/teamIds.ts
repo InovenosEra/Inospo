@@ -11,7 +11,7 @@ export const WC_TEAM_API_ID: Record<string, number> = {
   'Bosnia Herzegovina': 1113,
   Brazil: 6,
   Canada: 5529,
-  'Cape Verde': 19128,
+  'Cape Verde': 1533,
   Colombia: 8,
   'Congo DR': 1508,
   Croatia: 3,

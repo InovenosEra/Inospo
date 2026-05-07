@@ -23,19 +23,17 @@ async function callFootballApi(action: string, params?: Record<string, string>):
 
 // ─── Team form (last 5 official, no friendlies) ───────────────────────────────
 // Returns W/D/L results in chronological order (oldest first, most-recent last).
-// Returns [] if the team isn't in our API-Football map yet, or if the call fails.
+// Returns [] only when the team isn't in the WC_TEAM_API_ID map. Network/API
+// failures THROW so React Query's retry can do its job — a swallowed error
+// would cache [] permanently and hide the chips with no recovery path.
 export async function fetchTeamForm(teamName: string): Promise<FormResult[]> {
   const teamId = getApiTeamId(teamName);
   if (!teamId) return [];
-  try {
-    const { data, error } = await supabase.functions.invoke('team-form', {
-      body: { team_id: teamId, last: 5 },
-    });
-    if (error) throw error;
-    return (data?.form ?? []) as FormResult[];
-  } catch {
-    return [];
-  }
+  const { data, error } = await supabase.functions.invoke('team-form', {
+    body: { team_id: teamId, last: 5 },
+  });
+  if (error) throw error;
+  return (data?.form ?? []) as FormResult[];
 }
 
 // ─── Matches ───────────────────────────────────────────────────────────────────

@@ -19,28 +19,32 @@ interface Props {
 
 // ── Mock data (shown before tournament starts) ────────────────────────────────
 
+// Pre-tournament placeholders — real API-Football player photos.
+// Verified IDs against API-Football /players endpoint (2026-05-07).
+const PHOTO = (id: number) => `https://media.api-sports.io/football/players/${id}.png`;
+
 const MOCK_SCORERS: TopScorer[] = [
-  { player_id: 1, player_name: 'Kylian Mbappé',    team_name: 'France',    team_code: 'FRA', goals: 0, assists: 0, image_path: 'https://cdn.sportmonks.com/images/soccer/players/31/85095807.png' },
-  { player_id: 2, player_name: 'Erling Haaland',   team_name: 'Norway',    team_code: 'NOR', goals: 0, assists: 0, image_path: 'https://cdn.sportmonks.com/images/soccer/players/3/1719299.png' },
-  { player_id: 3, player_name: 'Lionel Messi',     team_name: 'Argentina', team_code: 'ARG', goals: 0, assists: 0, image_path: 'https://cdn.sportmonks.com/images/soccer/players/14/50000782.png' },
-  { player_id: 4, player_name: 'Harry Kane',       team_name: 'England',   team_code: 'ENG', goals: 0, assists: 0, image_path: 'https://cdn.sportmonks.com/images/soccer/players/18/986.png' },
-  { player_id: 5, player_name: 'Vinícius Jr.',     team_name: 'Brazil',    team_code: 'BRA', goals: 0, assists: 0, image_path: 'https://cdn.sportmonks.com/images/soccer/players/10/37036938.png' },
+  { player_id: 278,  player_name: 'Kylian Mbappé',  team_name: 'France',    team_code: 'FRA', goals: 0, assists: 0, image_path: PHOTO(278) },
+  { player_id: 1100, player_name: 'Erling Haaland', team_name: 'Norway',    team_code: 'NOR', goals: 0, assists: 0, image_path: PHOTO(1100) },
+  { player_id: 154,  player_name: 'Lionel Messi',   team_name: 'Argentina', team_code: 'ARG', goals: 0, assists: 0, image_path: PHOTO(154) },
+  { player_id: 184,  player_name: 'Harry Kane',     team_name: 'England',   team_code: 'ENG', goals: 0, assists: 0, image_path: PHOTO(184) },
+  { player_id: 762,  player_name: 'Vinícius Jr.',   team_name: 'Brazil',    team_code: 'BRA', goals: 0, assists: 0, image_path: PHOTO(762) },
 ];
 
 const MOCK_XG: TopScorer[] = [
-  { player_id: 6,  player_name: 'Erling Haaland',   team_name: 'Norway',    team_code: 'NOR', goals: 0, assists: 0, image_path: 'https://cdn.sportmonks.com/images/soccer/players/3/1719299.png' },
-  { player_id: 7,  player_name: 'Kylian Mbappé',    team_name: 'France',    team_code: 'FRA', goals: 0, assists: 0, image_path: 'https://cdn.sportmonks.com/images/soccer/players/31/85095807.png' },
-  { player_id: 8,  player_name: 'Harry Kane',       team_name: 'England',   team_code: 'ENG', goals: 0, assists: 0, image_path: 'https://cdn.sportmonks.com/images/soccer/players/18/986.png' },
-  { player_id: 9,  player_name: 'Lautaro Martínez', team_name: 'Argentina', team_code: 'ARG', goals: 0, assists: 0, image_path: 'https://cdn.sportmonks.com/images/soccer/players/9/37058825.png' },
-  { player_id: 10, player_name: 'Vinícius Jr.',     team_name: 'Brazil',    team_code: 'BRA', goals: 0, assists: 0, image_path: 'https://cdn.sportmonks.com/images/soccer/players/10/37036938.png' },
+  { player_id: 1100, player_name: 'Erling Haaland',   team_name: 'Norway',    team_code: 'NOR', goals: 0, assists: 0, image_path: PHOTO(1100) },
+  { player_id: 278,  player_name: 'Kylian Mbappé',    team_name: 'France',    team_code: 'FRA', goals: 0, assists: 0, image_path: PHOTO(278) },
+  { player_id: 184,  player_name: 'Harry Kane',       team_name: 'England',   team_code: 'ENG', goals: 0, assists: 0, image_path: PHOTO(184) },
+  { player_id: 217,  player_name: 'Lautaro Martínez', team_name: 'Argentina', team_code: 'ARG', goals: 0, assists: 0, image_path: PHOTO(217) },
+  { player_id: 762,  player_name: 'Vinícius Jr.',     team_name: 'Brazil',    team_code: 'BRA', goals: 0, assists: 0, image_path: PHOTO(762) },
 ];
 
 const MOCK_ASSISTS: TopScorer[] = [
-  { player_id: 11, player_name: 'Kevin De Bruyne', team_name: 'Belgium',   team_code: 'BEL', goals: 0, assists: 0, image_path: 'https://cdn.sportmonks.com/images/soccer/players/6/3430.png' },
-  { player_id: 12, player_name: 'Lionel Messi',    team_name: 'Argentina', team_code: 'ARG', goals: 0, assists: 0, image_path: 'https://cdn.sportmonks.com/images/soccer/players/14/50000782.png' },
-  { player_id: 13, player_name: 'Bruno Fernandes', team_name: 'Portugal',  team_code: 'POR', goals: 0, assists: 0, image_path: 'https://cdn.sportmonks.com/images/soccer/players/9/37028361.png' },
-  { player_id: 14, player_name: 'Florian Wirtz',   team_name: 'Germany',   team_code: 'GER', goals: 0, assists: 0, image_path: 'https://cdn.sportmonks.com/images/soccer/players/25/37061401.png' },
-  { player_id: 15, player_name: 'Bukayo Saka',     team_name: 'England',   team_code: 'ENG', goals: 0, assists: 0, image_path: 'https://cdn.sportmonks.com/images/soccer/players/6/37055750.png' },
+  { player_id: 629,    player_name: 'Kevin De Bruyne', team_name: 'Belgium',   team_code: 'BEL', goals: 0, assists: 0, image_path: PHOTO(629) },
+  { player_id: 154,    player_name: 'Lionel Messi',    team_name: 'Argentina', team_code: 'ARG', goals: 0, assists: 0, image_path: PHOTO(154) },
+  { player_id: 1485,   player_name: 'Bruno Fernandes', team_name: 'Portugal',  team_code: 'POR', goals: 0, assists: 0, image_path: PHOTO(1485) },
+  { player_id: 203224, player_name: 'Florian Wirtz',   team_name: 'Germany',   team_code: 'GER', goals: 0, assists: 0, image_path: PHOTO(203224) },
+  { player_id: 1460,   player_name: 'Bukayo Saka',     team_name: 'England',   team_code: 'ENG', goals: 0, assists: 0, image_path: PHOTO(1460) },
 ];
 
 const FLAG: Record<string, string> = {

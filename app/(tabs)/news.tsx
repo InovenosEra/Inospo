@@ -67,6 +67,7 @@ export default function NewsScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={styles.teamFiltersScroll}
         contentContainerStyle={styles.teamFilters}
       >
         <TouchableOpacity
@@ -148,9 +149,15 @@ const styles = StyleSheet.create({
     fontSize: Typography.base,
     paddingVertical: Spacing.md,
   },
+  teamFiltersScroll: {
+    flexGrow: 0,
+    flexShrink: 0,
+    marginBottom: Spacing.md,
+  },
   teamFilters: {
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
+    paddingVertical: Spacing.xs,
+    alignItems: 'center',
     gap: Spacing.sm,
   },
   teamChip: {

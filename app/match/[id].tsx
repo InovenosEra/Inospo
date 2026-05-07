@@ -53,7 +53,15 @@ export default function MatchDetailScreen() {
   const isScheduled = status === 'scheduled';
   const dateStr = match?.match_date ?? '';
   const venue = match?.stadium ? [match.stadium, match.city].filter(Boolean).join(', ') : '';
-  const stage = match?.stage ?? '';
+  const stage = (() => {
+    const s = match?.stage ?? '';
+    if (!s) return '';
+    if (s === 'group') {
+      const g = match?.home_team?.group_name;
+      return g ? `GROUP ${g}` : 'GROUP STAGE';
+    }
+    return s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  })();
   const scoreDisplay = match?.home_score != null && match?.away_score != null
     ? `${match.home_score} – ${match.away_score}`
     : null;

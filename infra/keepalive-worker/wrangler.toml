@@ -1,0 +1,10 @@
+name = "inospo-keepalive"
+main = "src/index.js"
+compatibility_date = "2026-05-07"
+
+# Daily ping at 06:00 UTC — well within the 7-day Supabase auto-pause window.
+[triggers]
+crons = ["0 6 * * *"]
+
+[observability]
+enabled = true

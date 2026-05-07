@@ -1,0 +1,14 @@
+{
+  "name": "inospo-keepalive-worker",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Cloudflare Worker that pings Supabase daily to prevent free-tier auto-pause",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^3.80.0"
+  }
+}

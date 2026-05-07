@@ -94,18 +94,31 @@ serve(async (req) => {
     const want = Math.min(10, Math.max(1, Number(body.last ?? 5)));
 
     // ── Bulk path ────────────────────────────────────────────────────────
+    // Throttled concurrency: API-Football's per-minute window will silently
+    // return empty `response` arrays under burst load, so we process the team
+    // list in small batches with a brief pause between them.
     if (Array.isArray(body.team_ids) && body.team_ids.length > 0) {
       const ids: number[] = body.team_ids
         .map((x: unknown) => Number(x))
         .filter((n: number) => Number.isFinite(n) && n > 0);
 
-      const results = await Promise.allSettled(
-        ids.map((id) => getFormForTeam(id, want, apiKey)),
-      );
+      const BATCH_SIZE = 5;
+      const BATCH_PAUSE_MS = 250;
       const forms: Record<number, Array<"W" | "D" | "L">> = {};
-      results.forEach((r, i) => {
-        if (r.status === "fulfilled") forms[ids[i]] = r.value.form;
-      });
+
+      for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+        const batch = ids.slice(i, i + BATCH_SIZE);
+        const settled = await Promise.allSettled(
+          batch.map((id) => getFormForTeam(id, want, apiKey)),
+        );
+        settled.forEach((r, j) => {
+          if (r.status === "fulfilled") forms[batch[j]] = r.value.form;
+          else console.warn(`team ${batch[j]} failed:`, r.reason);
+        });
+        if (i + BATCH_SIZE < ids.length) {
+          await new Promise((res) => setTimeout(res, BATCH_PAUSE_MS));
+        }
+      }
       return jsonResp({ forms });
     }
 

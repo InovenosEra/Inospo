@@ -283,59 +283,6 @@ export async function fetchLiveFixtures() {
   }
 }
 
-// Qualification Fixtures: GET via football-api (API-Football format)
-export async function fetchQualificationFixtures() {
-  try {
-    const data = await callFootballApi('qualifiers');
-    const fixtures: any[] = data?.response || [];
-
-    return fixtures.map((f: any) => {
-      const statusShort = f.fixture?.status?.short || 'NS';
-      let status: 'scheduled' | 'live' | 'completed' = 'scheduled';
-      if (['1H', 'HT', '2H', 'ET', 'P', 'BT', 'LIVE'].includes(statusShort)) status = 'live';
-      else if (['FT', 'AET', 'PEN'].includes(statusShort)) status = 'completed';
-
-      const homeGoals = f.goals?.home ?? null;
-      const awayGoals = f.goals?.away ?? null;
-      const penHome   = f.score?.penalty?.home ?? null;
-
-      // Build human-readable score string
-      let score: string | undefined;
-      if (status === 'completed' && homeGoals !== null && awayGoals !== null) {
-        score = penHome !== null
-          ? `${homeGoals}-${awayGoals} (pen)`
-          : `${homeGoals}-${awayGoals}`;
-      }
-
-      const homeWinner = f.teams?.home?.winner === true;
-      const awayWinner = f.teams?.away?.winner === true;
-
-      return {
-        id:          f.fixture?.id as number,
-        leagueId:    f.league?.id as number,        // 32=UEFA, 37=Intercontinental
-        round:       (f.league?.round || '') as string,
-        homeTeamId:  f.teams?.home?.id as number,
-        awayTeamId:  f.teams?.away?.id as number,
-        homeTeam:    f.teams?.home?.name || 'TBD',
-        awayTeam:    f.teams?.away?.name || 'TBD',
-        homeLogo:    f.teams?.home?.logo || '',
-        awayLogo:    f.teams?.away?.logo || '',
-        homeScore:   homeGoals as number | null,
-        awayScore:   awayGoals as number | null,
-        date:        f.fixture?.date || '',
-        venue:       f.fixture?.venue?.name || f.fixture?.venue?.city || '',
-        status,
-        score,                                       // e.g. '2-0', '1-1 (pen)'
-        winner:      homeWinner ? 'home' : awayWinner ? 'away' : null,
-      };
-    });
-  } catch {
-    return [];
-  }
-}
-
-export type QualFixture = Awaited<ReturnType<typeof fetchQualificationFixtures>>[number];
-
 // Match Statistics: GET via football-api
 export async function fetchMatchStatistics(fixtureId: string) {
   try {

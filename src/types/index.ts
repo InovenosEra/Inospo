@@ -29,6 +29,7 @@ export interface Match {
   city: string | null;
   stage: string | null;
   status: string | null;
+  api_fixture_id: number | null;
   created_at: string | null;
   // Joined via select
   home_team?: Team;

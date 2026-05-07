@@ -16,7 +16,6 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   fetchMatchById,
   fetchMatchFact,
-  fetchQualificationFixtures,
   fetchH2H,
   fetchMatchStatistics,
   fetchMatchEvents,
@@ -27,28 +26,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { PredictionModal } from '@/components/PredictionModal';
 import { Colors, Spacing, Typography, Radius, Shadows } from '@/constants/theme';
 import { scale } from '@/utils/responsive';
-import type { Match } from '@/types';
-
-// Flag map (API-Football team ID → flagcdn URL)
-const TEAM_FLAGS: Record<number, string> = {
-  767: 'https://flagcdn.com/w80/gb-wls.png', 1113: 'https://flagcdn.com/w80/ba.png',
-  768: 'https://flagcdn.com/w80/it.png',     771:  'https://flagcdn.com/w80/gb-nir.png',
-  24:  'https://flagcdn.com/w80/pl.png',     778:  'https://flagcdn.com/w80/al.png',
-  772: 'https://flagcdn.com/w80/ua.png',     5:    'https://flagcdn.com/w80/se.png',
-  773: 'https://flagcdn.com/w80/sk.png',     1111: 'https://flagcdn.com/w80/xk.png',
-  777: 'https://flagcdn.com/w80/tr.png',     774:  'https://flagcdn.com/w80/ro.png',
-  770: 'https://flagcdn.com/w80/cz.png',     776:  'https://flagcdn.com/w80/ie.png',
-  21:  'https://flagcdn.com/w80/dk.png',     1105: 'https://flagcdn.com/w80/mk.png',
-  5163:'https://flagcdn.com/w80/nc.png',     2385: 'https://flagcdn.com/w80/jm.png',
-  1508:'https://flagcdn.com/w80/cd.png',     2381: 'https://flagcdn.com/w80/bo.png',
-  8171:'https://flagcdn.com/w80/sr.png',     1567: 'https://flagcdn.com/w80/iq.png',
-};
 
 type TabKey = 'h2h' | 'stats' | 'lineups' | 'events';
 
 export default function MatchDetailScreen() {
-  const { id, playoff } = useLocalSearchParams<{ id: string; playoff?: string }>();
-  const isPlayoff = playoff === 'true';
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { isAuthenticated, profile } = useAuth();
@@ -56,72 +38,37 @@ export default function MatchDetailScreen() {
   const [activeTab, setActiveTab] = useState<TabKey>('h2h');
   const [factKey, setFactKey] = useState(0);
 
-  // ── Group stage match (Supabase DB) ──────────────────────────────────────
-  const { data: match, isLoading: matchLoading } = useQuery({
+  const { data: match, isLoading } = useQuery({
     queryKey: ['match', id],
     queryFn: () => fetchMatchById(id),
-    enabled: !isPlayoff,
   });
 
-  // ── Playoff match (API-Football via cached fixtures query) ────────────────
-  const { data: playoffFixtures = [], isLoading: fixturesLoading } = useQuery({
-    queryKey: ['qualificationFixtures'],
-    queryFn: fetchQualificationFixtures,
-    staleTime: 5 * 60 * 1000,
-    enabled: isPlayoff,
-  });
-  const playoffMatch = isPlayoff
-    ? (playoffFixtures.find((f) => String(f.id) === String(id)) ?? null)
-    : null;
-
-  const isLoading = isPlayoff ? fixturesLoading : matchLoading;
-
-  // ── Unified display values ────────────────────────────────────────────────
-  const homeTeamName = isPlayoff ? (playoffMatch?.homeTeam ?? '') : (match?.home_team?.name ?? '');
-  const awayTeamName = isPlayoff ? (playoffMatch?.awayTeam ?? '') : (match?.away_team?.name ?? '');
-  const homeFlag = isPlayoff
-    ? (TEAM_FLAGS[playoffMatch?.homeTeamId ?? 0] || playoffMatch?.homeLogo || '')
-    : (match?.home_team?.flag_url ?? '');
-  const awayFlag = isPlayoff
-    ? (TEAM_FLAGS[playoffMatch?.awayTeamId ?? 0] || playoffMatch?.awayLogo || '')
-    : (match?.away_team?.flag_url ?? '');
-  const status = isPlayoff ? (playoffMatch?.status ?? 'scheduled') : (match?.status ?? 'scheduled');
+  const homeTeamName = match?.home_team?.name ?? '';
+  const awayTeamName = match?.away_team?.name ?? '';
+  const homeFlag = match?.home_team?.flag_url ?? '';
+  const awayFlag = match?.away_team?.flag_url ?? '';
+  const status = match?.status ?? 'scheduled';
   const isFinished = status === 'finished' || status === 'completed';
   const isLive = status === 'live';
   const isScheduled = status === 'scheduled';
-  const dateStr = isPlayoff ? (playoffMatch?.date ?? '') : (match?.match_date ?? '');
-  const venue = isPlayoff
-    ? (playoffMatch?.venue ?? '')
-    : (match?.stadium ? [match.stadium, match.city].filter(Boolean).join(', ') : '');
-  const stage = isPlayoff ? (playoffMatch?.round ?? '') : (match?.stage ?? '');
-  const scoreDisplay = isPlayoff
-    ? (playoffMatch?.score ?? null)
-    : (match?.home_score != null && match?.away_score != null
-        ? `${match.home_score} – ${match.away_score}`
-        : null);
+  const dateStr = match?.match_date ?? '';
+  const venue = match?.stadium ? [match.stadium, match.city].filter(Boolean).join(', ') : '';
+  const stage = match?.stage ?? '';
+  const scoreDisplay = match?.home_score != null && match?.away_score != null
+    ? `${match.home_score} – ${match.away_score}`
+    : null;
 
   // ── AI Fact (only for scheduled / live matches) ───────────────────────────
-  const factEnabled = !isFinished && (isPlayoff ? !!playoffMatch : !!match) && !!homeTeamName && !!awayTeamName;
+  const factEnabled = !isFinished && !!match && !!homeTeamName && !!awayTeamName;
   const { data: fact, isFetching: factFetching } = useQuery({
     queryKey: ['match-fact', homeTeamName, awayTeamName, factKey],
-    queryFn: () => {
-      if (isPlayoff && playoffMatch) {
-        return fetchMatchFact({
-          home_team: { name: homeTeamName } as any,
-          away_team: { name: awayTeamName } as any,
-          stadium: venue,
-          city: '',
-          stage,
-        } as Match);
-      }
-      return fetchMatchFact(match!);
-    },
+    queryFn: () => fetchMatchFact(match!),
     enabled: factEnabled,
     staleTime: 60 * 60 * 1000, // cache per team pair for 1h
   });
 
-  // ── Determine fixtureId for stats/events/lineups (playoff only) ──────────
-  const fixtureId = isPlayoff ? String(id) : null;
+  // ── Fixture ID powers Stats / Events / Lineups (set on every match in DB) ─
+  const fixtureId = match?.api_fixture_id ? String(match.api_fixture_id) : null;
 
   // ── H2H ──────────────────────────────────────────────────────────────────
   const { data: h2hData, isLoading: h2hLoading } = useQuery({
@@ -172,7 +119,7 @@ export default function MatchDetailScreen() {
     );
   }
 
-  if (!isLoading && ((isPlayoff && !playoffMatch) || (!isPlayoff && !match))) {
+  if (!isLoading && !match) {
     return (
       <View style={[styles.container, styles.centered, { paddingTop: insets.top }]}>
         <Ionicons name="alert-circle-outline" size={48} color={Colors.textMuted} />
@@ -253,8 +200,8 @@ export default function MatchDetailScreen() {
             </View>
           ) : null}
 
-          {/* Predict Button (group stage only) */}
-          {isScheduled && !isPlayoff && isAuthenticated && (
+          {/* Predict Button */}
+          {isScheduled && isAuthenticated && (
             <TouchableOpacity
               style={styles.predictBtn}
               onPress={() => setShowPrediction(true)}
@@ -338,8 +285,7 @@ export default function MatchDetailScreen() {
         )}
       </ScrollView>
 
-      {/* Prediction Modal (group stage only) */}
-      {!isPlayoff && match && (
+      {match && (
         <PredictionModal
           match={match}
           userId={profile?.id ?? ''}
@@ -413,7 +359,7 @@ function StatsTab({ loading, data, homeTeam, awayTeam, hasFixtureId, isScheduled
       <View style={styles.comingSoon}>
         <Ionicons name="stats-chart-outline" size={40} color={Colors.textMuted} />
         <Text style={styles.comingSoonText}>No Statistics</Text>
-        <Text style={styles.comingSoonSub}>Stats are available for qualifying playoff matches only.</Text>
+        <Text style={styles.comingSoonSub}>Statistics aren't available for this match.</Text>
       </View>
     );
   }
@@ -561,7 +507,7 @@ function LineupsTab({ loading, data, hasFixtureId, events, playerStatsData }: {
       <View style={styles.comingSoon}>
         <Ionicons name="people-outline" size={40} color={Colors.textMuted} />
         <Text style={styles.comingSoonText}>No Lineups</Text>
-        <Text style={styles.comingSoonSub}>Lineups are available for qualifying playoff matches only.</Text>
+        <Text style={styles.comingSoonSub}>Lineups aren't available for this match.</Text>
       </View>
     );
   }
@@ -1008,7 +954,7 @@ function EventsTab({ loading, data, hasFixtureId, isScheduled }: {
       <View style={styles.comingSoon}>
         <Ionicons name="list-outline" size={40} color={Colors.textMuted} />
         <Text style={styles.comingSoonText}>No Events</Text>
-        <Text style={styles.comingSoonSub}>Events are available for qualifying playoff matches only.</Text>
+        <Text style={styles.comingSoonSub}>Events aren't available for this match.</Text>
       </View>
     );
   }

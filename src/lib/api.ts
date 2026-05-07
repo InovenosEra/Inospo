@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { getApiTeamId } from './teamIds';
+import { WC_TEAM_API_ID, getApiTeamId } from './teamIds';
 import type {
   Match,
   Team,
@@ -23,9 +23,8 @@ async function callFootballApi(action: string, params?: Record<string, string>):
 
 // ─── Team form (last 5 official, no friendlies) ───────────────────────────────
 // Returns W/D/L results in chronological order (oldest first, most-recent last).
-// Returns [] only when the team isn't in the WC_TEAM_API_ID map. Network/API
-// failures THROW so React Query's retry can do its job — a swallowed error
-// would cache [] permanently and hide the chips with no recovery path.
+
+// Single-team variant. Used by detail screens / specific lookups.
 export async function fetchTeamForm(teamName: string): Promise<FormResult[]> {
   const teamId = getApiTeamId(teamName);
   if (!teamId) return [];
@@ -34,6 +33,27 @@ export async function fetchTeamForm(teamName: string): Promise<FormResult[]> {
   });
   if (error) throw error;
   return (data?.form ?? []) as FormResult[];
+}
+
+// Bulk variant — fetches every WC team's form in ONE edge-function call so the
+// matches list doesn't fan out into 144 parallel network round-trips. The
+// result is keyed by team NAME so consumers don't have to know API-Football IDs.
+export async function fetchAllTeamForms(): Promise<Record<string, FormResult[]>> {
+  const ids = Object.values(WC_TEAM_API_ID);
+  const { data, error } = await supabase.functions.invoke('team-form', {
+    body: { team_ids: ids, last: 5 },
+  });
+  if (error) throw error;
+  const idToName: Record<number, string> = {};
+  for (const [name, id] of Object.entries(WC_TEAM_API_ID)) idToName[id] = name;
+
+  const out: Record<string, FormResult[]> = {};
+  const forms = (data?.forms ?? {}) as Record<string, FormResult[]>;
+  for (const [idStr, form] of Object.entries(forms)) {
+    const name = idToName[Number(idStr)];
+    if (name) out[name] = form;
+  }
+  return out;
 }
 
 // ─── Matches ───────────────────────────────────────────────────────────────────

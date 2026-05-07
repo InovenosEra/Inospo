@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
-import { fetchTeamForm } from '@/lib/api';
+import { fetchAllTeamForms } from '@/lib/api';
 
 // FIFA Rankings — all 53 WC 2026 teams (Jan 2025 approximation)
 const FIFA_RANKINGS: Record<string, number> = {
@@ -105,23 +105,17 @@ export function MatchOdds({ homeTeam, awayTeam }: Props) {
   const odds = calculateWinProbability(homeRank, awayRank);
   const favorite = odds.home > odds.away ? 'home' : odds.away > odds.home ? 'away' : 'draw';
 
-  // Live form via team-form edge function (no friendlies). Cached 1h with
-  // up to 2 retries so a transient failure doesn't permanently hide the chips.
-  const STALE = 60 * 60 * 1000;
-  const { data: homeForm = [] } = useQuery({
-    queryKey: ['team-form', homeTeam],
-    queryFn: () => fetchTeamForm(homeTeam),
-    staleTime: STALE,
+  // Single shared query that fetches every team's form in one bulk call.
+  // React Query auto-dedupes by key, so all MatchOdds instances on screen
+  // share one network round-trip instead of fanning out per team.
+  const { data: allForms = {} } = useQuery({
+    queryKey: ['team-forms-all'],
+    queryFn: fetchAllTeamForms,
+    staleTime: 60 * 60 * 1000,
     retry: 2,
-    enabled: !!homeTeam,
   });
-  const { data: awayForm = [] } = useQuery({
-    queryKey: ['team-form', awayTeam],
-    queryFn: () => fetchTeamForm(awayTeam),
-    staleTime: STALE,
-    retry: 2,
-    enabled: !!awayTeam,
-  });
+  const homeForm = allForms[homeTeam] ?? [];
+  const awayForm = allForms[awayTeam] ?? [];
   const hasHomeForm = homeForm.length > 0;
   const hasAwayForm = awayForm.length > 0;
 

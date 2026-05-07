@@ -1,5 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
+import { fetchTeamForm } from '@/lib/api';
 
 // FIFA Rankings — all 53 WC 2026 teams (Jan 2025 approximation)
 const FIFA_RANKINGS: Record<string, number> = {
@@ -59,31 +61,9 @@ const FIFA_RANKINGS: Record<string, number> = {
   'New Zealand': 97,
 };
 
-// Recent form (last 5: W/D/L) — key qualifying/recent teams
+// Form is fetched live from API-Football via the team-form edge function;
+// no static map here. FormResult moved to src/lib/api.ts.
 type FormResult = 'W' | 'D' | 'L';
-const TEAM_FORM: Record<string, FormResult[]> = {
-  'Argentina': ['W', 'W', 'W', 'D', 'W'],
-  'France': ['W', 'W', 'D', 'W', 'W'],
-  'Spain': ['W', 'W', 'W', 'W', 'D'],
-  'England': ['W', 'D', 'W', 'W', 'W'],
-  'Brazil': ['D', 'W', 'L', 'W', 'W'],
-  'Germany': ['W', 'W', 'W', 'D', 'W'],
-  'Portugal': ['W', 'W', 'W', 'W', 'D'],
-  'Netherlands': ['W', 'W', 'D', 'W', 'W'],
-  'Belgium': ['W', 'D', 'W', 'W', 'L'],
-  'Italy': ['W', 'W', 'D', 'W', 'W'],
-  'USA': ['W', 'W', 'D', 'W', 'W'],
-  'Mexico': ['W', 'D', 'W', 'W', 'D'],
-  'Canada': ['W', 'W', 'W', 'D', 'W'],
-  'Morocco': ['W', 'W', 'D', 'W', 'W'],
-  'Japan': ['W', 'W', 'W', 'D', 'W'],
-  'South Korea': ['W', 'D', 'W', 'W', 'D'],
-  'Denmark': ['W', 'W', 'W', 'W', 'D'],
-  'Switzerland': ['W', 'D', 'W', 'W', 'W'],
-  'Serbia': ['W', 'D', 'W', 'L', 'W'],
-  'Wales': ['W', 'D', 'L', 'W', 'D'],
-  'Turkey': ['W', 'W', 'W', 'D', 'W'],
-};
 
 function calculateWinProbability(homeRank: number, awayRank: number) {
   const rankDiff = awayRank - homeRank;
@@ -124,17 +104,33 @@ export function MatchOdds({ homeTeam, awayTeam }: Props) {
 
   const odds = calculateWinProbability(homeRank, awayRank);
   const favorite = odds.home > odds.away ? 'home' : odds.away > odds.home ? 'away' : 'draw';
-  const homeForm = TEAM_FORM[homeTeam];
-  const awayForm = TEAM_FORM[awayTeam];
+
+  // Live form via team-form edge function (no friendlies). Cached 12h since
+  // results don't change between renders within a session.
+  const STALE = 12 * 60 * 60 * 1000;
+  const { data: homeForm = [] } = useQuery({
+    queryKey: ['team-form', homeTeam],
+    queryFn: () => fetchTeamForm(homeTeam),
+    staleTime: STALE,
+    enabled: !!homeTeam,
+  });
+  const { data: awayForm = [] } = useQuery({
+    queryKey: ['team-form', awayTeam],
+    queryFn: () => fetchTeamForm(awayTeam),
+    staleTime: STALE,
+    enabled: !!awayTeam,
+  });
+  const hasHomeForm = homeForm.length > 0;
+  const hasAwayForm = awayForm.length > 0;
 
   return (
     <View style={styles.container}>
       {/* Form row — only show if at least one team has form data */}
-      {(homeForm || awayForm) && (
+      {(hasHomeForm || hasAwayForm) && (
         <View style={styles.formRow}>
           <View style={styles.formSide}>
             <Text style={styles.teamCode}>{homeTeam.slice(0, 3).toUpperCase()}</Text>
-            {homeForm ? (
+            {hasHomeForm ? (
               <View style={styles.formDots}>
                 {homeForm.map((r, i) => (
                   <View key={i} style={[styles.formDot, { backgroundColor: FORM_COLORS[r] }]}>
@@ -148,7 +144,7 @@ export function MatchOdds({ homeTeam, awayTeam }: Props) {
           </View>
           <Text style={styles.formLabel}>Form</Text>
           <View style={[styles.formSide, styles.formSideRight]}>
-            {awayForm ? (
+            {hasAwayForm ? (
               <View style={styles.formDots}>
                 {awayForm.map((r, i) => (
                   <View key={i} style={[styles.formDot, { backgroundColor: FORM_COLORS[r] }]}>

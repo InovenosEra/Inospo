@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getApiTeamId } from './teamIds';
 import type {
   Match,
   Team,
@@ -9,6 +10,8 @@ import type {
   LeaderboardEntry,
 } from '@/types';
 
+export type FormResult = 'W' | 'D' | 'L';
+
 // ─── football-api edge function (POST with action in body) ────────────────────
 async function callFootballApi(action: string, params?: Record<string, string>): Promise<any> {
   const { data, error } = await supabase.functions.invoke('football-api', {
@@ -16,6 +19,23 @@ async function callFootballApi(action: string, params?: Record<string, string>):
   });
   if (error) throw error;
   return data;
+}
+
+// ─── Team form (last 5 official, no friendlies) ───────────────────────────────
+// Returns W/D/L results in chronological order (oldest first, most-recent last).
+// Returns [] if the team isn't in our API-Football map yet, or if the call fails.
+export async function fetchTeamForm(teamName: string): Promise<FormResult[]> {
+  const teamId = getApiTeamId(teamName);
+  if (!teamId) return [];
+  try {
+    const { data, error } = await supabase.functions.invoke('team-form', {
+      body: { team_id: teamId, last: 5 },
+    });
+    if (error) throw error;
+    return (data?.form ?? []) as FormResult[];
+  } catch {
+    return [];
+  }
 }
 
 // ─── Matches ───────────────────────────────────────────────────────────────────

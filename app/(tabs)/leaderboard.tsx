@@ -141,8 +141,59 @@ export default function LeaderboardScreen() {
         ListEmptyComponent={
           !isLoading ? (
             <View style={styles.empty}>
-              <Ionicons name="trophy-outline" size={48} color={Colors.textMuted} />
+              <Ionicons name="trophy-outline" size={42} color={Colors.primary} />
               <Text style={styles.emptyText}>No rankings yet</Text>
+              <Text style={styles.emptySubtext}>
+                The leaderboard fills in once predictions start scoring on June 11.
+              </Text>
+
+              {/* How points work */}
+              <View style={styles.pointsCard}>
+                <Text style={styles.pointsTitle}>How points work</Text>
+                <View style={styles.pointsRow}>
+                  <View style={[styles.pointsChip, { backgroundColor: Colors.primaryDim }]}>
+                    <Text style={[styles.pointsChipText, { color: Colors.primary }]}>+5</Text>
+                  </View>
+                  <Text style={styles.pointsLabel}>Exact score</Text>
+                </View>
+                <View style={styles.pointsRow}>
+                  <View style={[styles.pointsChip, { backgroundColor: Colors.accentDim }]}>
+                    <Text style={[styles.pointsChipText, { color: Colors.accent }]}>+2</Text>
+                  </View>
+                  <Text style={styles.pointsLabel}>Right result (winner or draw)</Text>
+                </View>
+                <View style={styles.pointsRow}>
+                  <View style={[styles.pointsChip, { backgroundColor: 'rgba(100,116,139,0.15)' }]}>
+                    <Text style={[styles.pointsChipText, { color: Colors.textMuted }]}>+0</Text>
+                  </View>
+                  <Text style={styles.pointsLabel}>Wrong direction</Text>
+                </View>
+              </View>
+
+              {/* Preview leaderboard */}
+              <Text style={styles.previewLabel}>PREVIEW</Text>
+              <View style={styles.previewWrap}>
+                {[
+                  { rank: 1, name: '@yourfriendscoring', pts: 187 },
+                  { rank: 2, name: '@goalshark', pts: 164 },
+                  { rank: 3, name: '@scoreking', pts: 152 },
+                ].map((row) => (
+                  <View key={row.rank} style={styles.previewRow}>
+                    <Text style={[
+                      styles.previewRank,
+                      row.rank === 1 && { color: Colors.primary },
+                    ]}>
+                      {row.rank}
+                    </Text>
+                    <View style={styles.previewAvatar}>
+                      <Text style={styles.previewAvatarInitial}>{row.name[1].toUpperCase()}</Text>
+                    </View>
+                    <Text style={styles.previewName} numberOfLines={1}>{row.name}</Text>
+                    <Text style={styles.previewPts}>{row.pts}<Text style={styles.previewPtsUnit}> pts</Text></Text>
+                  </View>
+                ))}
+                <View pointerEvents="none" style={styles.previewDim} />
+              </View>
             </View>
           ) : null
         }
@@ -274,8 +325,136 @@ const styles = StyleSheet.create({
   yourRankValue: { color: Colors.primary, fontSize: Typography.lg, fontWeight: '800' },
   yourRankPoints: { color: Colors.textSecondary, fontSize: Typography.sm },
   listContent: { paddingHorizontal: Spacing.lg },
-  empty: { alignItems: 'center', paddingTop: 80, gap: Spacing.md },
-  emptyText: { color: Colors.textMuted, fontSize: Typography.base },
+  empty: {
+    alignItems: 'center',
+    paddingTop: Spacing.xxl,
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.md,
+  },
+  emptyText: {
+    color: Colors.text,
+    fontSize: Typography.lg,
+    fontWeight: '700',
+    marginTop: Spacing.sm,
+  },
+  emptySubtext: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sm,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: Spacing.md,
+  },
+
+  // Points explainer + preview rows
+  pointsCard: {
+    width: '100%',
+    backgroundColor: Colors.card,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  pointsTitle: {
+    color: Colors.primary,
+    fontSize: Typography.sm,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: Spacing.xs,
+  },
+  pointsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  pointsChip: {
+    width: 40,
+    height: 28,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pointsChipText: {
+    fontSize: Typography.sm,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
+  },
+  pointsLabel: {
+    flex: 1,
+    color: Colors.textSecondary,
+    fontSize: Typography.sm,
+  },
+
+  previewLabel: {
+    width: '100%',
+    color: Colors.textMuted,
+    fontSize: Typography.xs,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    marginTop: Spacing.lg,
+    marginBottom: 4,
+    paddingLeft: 4,
+  },
+  previewWrap: {
+    width: '100%',
+    position: 'relative',
+    backgroundColor: Colors.card,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    gap: Spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  previewRank: {
+    width: 24,
+    color: Colors.textSecondary,
+    fontSize: Typography.base,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  previewAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.cardElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewAvatarInitial: {
+    color: Colors.text,
+    fontSize: Typography.sm,
+    fontWeight: '800',
+  },
+  previewName: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: Typography.sm,
+    fontWeight: '600',
+  },
+  previewPts: {
+    color: Colors.primary,
+    fontSize: Typography.base,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  previewPtsUnit: {
+    color: Colors.textMuted,
+    fontSize: Typography.xs,
+    fontWeight: '600',
+  },
+  previewDim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(11,17,36,0.45)',
+  },
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',

@@ -59,6 +59,10 @@ const FIFA_RANKINGS: Record<string, number> = {
   'Uzbekistan': 74,
   'Curacao': 105,
   'New Zealand': 97,
+  // Late-qualified WC2026 nations (added 2026-05-07)
+  'Sweden': 26,
+  'Iraq': 58,
+  'Congo DR': 60,
 };
 
 // Form is fetched live from API-Football via the team-form edge function;
@@ -100,10 +104,14 @@ export function MatchOdds({ homeTeam, awayTeam }: Props) {
 
   const homeRank = FIFA_RANKINGS[homeTeam];
   const awayRank = FIFA_RANKINGS[awayTeam];
-  if (!homeRank || !awayRank) return null;
 
-  const odds = calculateWinProbability(homeRank, awayRank);
-  const favorite = odds.home > odds.away ? 'home' : odds.away > odds.home ? 'away' : 'draw';
+  // Win-prob is only meaningful when both teams have FIFA rankings; the form
+  // chips don't depend on rankings and should render either way.
+  const hasOdds = !!homeRank && !!awayRank;
+  const odds = hasOdds ? calculateWinProbability(homeRank, awayRank) : null;
+  const favorite = odds
+    ? (odds.home > odds.away ? 'home' : odds.away > odds.home ? 'away' : 'draw')
+    : null;
 
   // Single shared query that fetches every team's form in one bulk call.
   // React Query auto-dedupes by key, so all MatchOdds instances on screen
@@ -118,6 +126,9 @@ export function MatchOdds({ homeTeam, awayTeam }: Props) {
   const awayForm = allForms[awayTeam] ?? [];
   const hasHomeForm = homeForm.length > 0;
   const hasAwayForm = awayForm.length > 0;
+
+  // Only suppress the whole component when there's literally nothing to show.
+  if (!hasOdds && !hasHomeForm && !hasAwayForm) return null;
 
   return (
     <View style={styles.container}>
@@ -156,26 +167,28 @@ export function MatchOdds({ homeTeam, awayTeam }: Props) {
         </View>
       )}
 
-      {/* Win probability */}
-      <View style={styles.oddsRow}>
-        <Text style={styles.oddsLabel}>Win %</Text>
-        <View style={styles.oddsValues}>
-          <Text style={[styles.oddsVal, favorite === 'home' && styles.oddsValFav]}>
-            {odds.home}%
-          </Text>
-          <Text style={styles.oddsDraw}>{odds.draw}%</Text>
-          <Text style={[styles.oddsVal, favorite === 'away' && styles.oddsValFav]}>
-            {odds.away}%
-          </Text>
-        </View>
-      </View>
-
-      {/* Visual bar */}
-      <View style={styles.bar}>
-        <View style={[styles.barHome, { flex: odds.home }]} />
-        <View style={[styles.barDraw, { flex: odds.draw }]} />
-        <View style={[styles.barAway, { flex: odds.away }]} />
-      </View>
+      {/* Win probability — only when both teams have FIFA ranks */}
+      {odds && (
+        <>
+          <View style={styles.oddsRow}>
+            <Text style={styles.oddsLabel}>Win %</Text>
+            <View style={styles.oddsValues}>
+              <Text style={[styles.oddsVal, favorite === 'home' && styles.oddsValFav]}>
+                {odds.home}%
+              </Text>
+              <Text style={styles.oddsDraw}>{odds.draw}%</Text>
+              <Text style={[styles.oddsVal, favorite === 'away' && styles.oddsValFav]}>
+                {odds.away}%
+              </Text>
+            </View>
+          </View>
+          <View style={styles.bar}>
+            <View style={[styles.barHome, { flex: odds.home }]} />
+            <View style={[styles.barDraw, { flex: odds.draw }]} />
+            <View style={[styles.barAway, { flex: odds.away }]} />
+          </View>
+        </>
+      )}
     </View>
   );
 }

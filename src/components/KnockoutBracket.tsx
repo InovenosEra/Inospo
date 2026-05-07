@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Typography, Radius } from '@/constants/theme';
 import { scale } from '@/utils/responsive';
 import type { Match } from '@/types';
@@ -8,6 +9,20 @@ interface Props {
 }
 
 const KNOCKOUT_STAGES = ['Round of 32', 'Round of 16', 'Quarter-finals', 'Semi-finals', 'Final'];
+
+// FIFA's published Round-of-32 pairings for WC 2026.
+// 12 group winners + 12 runners-up + 8 best 3rd-places → 16 matches.
+// "1A" = winner of Group A · "2A" = runner-up of Group A · "3rd" = best-3rd slot.
+const R32_PAIRS: Array<[string, string]> = [
+  ['1A', '2C'], ['1C', '3rd'], ['1B', '3rd'], ['1F', '3rd'],
+  ['1D', '3rd'], ['1L', '2K'], ['1G', '2J'], ['1J', '3rd'],
+  ['1H', '3rd'], ['1E', '3rd'], ['1K', '2I'], ['1I', '2H'],
+  ['2A', '2B'], ['2D', '2L'], ['2E', '2F'], ['2G', '3rd'],
+];
+
+// Cumulative match count *before* each stage (R32 starts at M1).
+//   R32  R16  QF  SF  Final
+const STAGE_OFFSET = [0, 16, 24, 28, 30];
 
 export function KnockoutBracket({ matches }: Props) {
   const knockoutMatches = matches.filter((m) => m.stage !== 'group');
@@ -35,21 +50,51 @@ export function KnockoutBracket({ matches }: Props) {
           ))
         ) : (
           <View style={styles.placeholder}>
-            <Text style={styles.placeholderIcon}>🏆</Text>
+            <Ionicons name="trophy-outline" size={42} color={Colors.primary} />
             <Text style={styles.placeholderTitle}>Knockout Stage</Text>
             <Text style={styles.placeholderText}>
-              The bracket will be set after the{'\n'}group stage concludes.
+              The bracket fills in as the group stage concludes.{'\n'}
+              Slots show how each group seeds into the Round of 32.
             </Text>
             <View style={styles.mockBracket}>
-              {KNOCKOUT_STAGES.map((stage) => (
-                <View key={stage} style={styles.mockStage}>
-                  <Text style={styles.mockStageLabel}>{stage}</Text>
-                  {Array.from({ length: Math.max(1, 16 / (2 ** KNOCKOUT_STAGES.indexOf(stage))) }).map((_, i) => (
-                    <View key={i} style={styles.mockCard} />
-                  ))}
-                </View>
-              ))}
+              {KNOCKOUT_STAGES.map((stage, stageIdx) => {
+                const slotCount = Math.max(1, 16 / (2 ** stageIdx));
+                return (
+                  <View key={stage} style={styles.mockStage}>
+                    <Text style={styles.mockStageLabel}>{stage}</Text>
+                    {Array.from({ length: slotCount }).map((_, i) => {
+                      // Round of 32 — show actual FIFA seed pairings
+                      if (stageIdx === 0) {
+                        const [home, away] = R32_PAIRS[i] ?? ['?', '?'];
+                        return (
+                          <View key={i} style={styles.mockCard}>
+                            <Text style={styles.mockSlotText} numberOfLines={1}>{home}</Text>
+                            <View style={styles.mockSlotDivider} />
+                            <Text style={styles.mockSlotText} numberOfLines={1}>{away}</Text>
+                          </View>
+                        );
+                      }
+                      // Later rounds — show winners of the two upstream matches.
+                      const prevStageStart = STAGE_OFFSET[stageIdx - 1] + 1;
+                      const m1 = prevStageStart + i * 2;
+                      const m2 = m1 + 1;
+                      return (
+                        <View key={i} style={styles.mockCard}>
+                          <Text style={styles.mockSlotTextSmall} numberOfLines={1}>W·M{m1}</Text>
+                          <View style={styles.mockSlotDivider} />
+                          <Text style={styles.mockSlotTextSmall} numberOfLines={1}>W·M{m2}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                );
+              })}
             </View>
+            <Text style={styles.legend}>
+              <Text style={styles.legendBold}>1A</Text> = Group A winner ·{' '}
+              <Text style={styles.legendBold}>2C</Text> = Group C runner-up ·{' '}
+              <Text style={styles.legendBold}>3rd</Text> = best 3rd-place
+            </Text>
           </View>
         )}
       </View>
@@ -165,11 +210,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.xxl,
   },
-  placeholderIcon: { fontSize: 48, marginBottom: Spacing.md },
   placeholderTitle: {
     color: Colors.text,
     fontSize: Typography.lg,
     fontWeight: '800',
+    marginTop: Spacing.md,
     marginBottom: Spacing.sm,
   },
   placeholderText: {
@@ -178,23 +223,58 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
   },
-  mockBracket: { flexDirection: 'row', gap: Spacing.sm },
-  mockStage: { width: scale(80), gap: Spacing.sm },
+  mockBracket: { flexDirection: 'row', gap: Spacing.xs },
+  mockStage: { width: scale(64), gap: scale(6) },
   mockStageLabel: {
-    color: Colors.textMuted,
-    fontSize: 8,
+    color: Colors.primary,
+    fontSize: 9,
     textAlign: 'center',
-    fontWeight: '600',
-    marginBottom: 2,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    marginBottom: 4,
+    textTransform: 'uppercase',
   },
   mockCard: {
-    height: scale(32),
     backgroundColor: Colors.card,
     borderRadius: Radius.sm,
     borderWidth: 1,
     borderColor: Colors.border,
-    marginBottom: Spacing.sm,
-    opacity: 0.5,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(36),
+  },
+  mockSlotText: {
+    color: Colors.text,
+    fontSize: 10,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  mockSlotTextSmall: {
+    color: Colors.textMuted,
+    fontSize: 9,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  mockSlotDivider: {
+    width: '60%',
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.border,
+    marginVertical: 2,
+  },
+  legend: {
+    color: Colors.textMuted,
+    fontSize: 10,
+    textAlign: 'center',
+    marginTop: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    lineHeight: 16,
+  },
+  legendBold: {
+    color: Colors.primary,
+    fontWeight: '800',
   },
 });
